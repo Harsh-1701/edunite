@@ -5,17 +5,16 @@ import { connectDB } from '@/lib/db'
 import { User } from '@/lib/models'
 import { hashPassword } from '@/lib/auth'
 
-// GET - Fetch all users
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
     await connectDB()
-    
+
     const users = await User.find({})
       .select('-password')
       .sort({ createdAt: -1 })
-    
+
     return NextResponse.json({ users })
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error fetching users:', error)
     return NextResponse.json(
       { error: 'Failed to fetch users' },
@@ -24,15 +23,13 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// POST - Add new user
 export async function POST(req: NextRequest) {
   try {
     await connectDB()
-    
+
     const body = await req.json()
     const { name, email, password, role, branch, company, usn, designation, graduationYear } = body
 
-    // Check if email exists
     const existingUser = await User.findOne({ email: email.toLowerCase() })
     if (existingUser) {
       return NextResponse.json(
@@ -41,10 +38,8 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Hash password
     const hashedPassword = await hashPassword(password)
 
-    // Create user
     const user = await User.create({
       name,
       email: email.toLowerCase(),
@@ -55,7 +50,7 @@ export async function POST(req: NextRequest) {
       collegeId: usn,
       designation,
       graduationYear: graduationYear ? parseInt(graduationYear) : undefined,
-      isVerified: true, // Admin-added users are auto-verified
+      isVerified: true,
     })
 
     const userData = {
@@ -71,10 +66,10 @@ export async function POST(req: NextRequest) {
       message: 'User created successfully',
       user: userData,
     })
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error creating user:', error)
     return NextResponse.json(
-      { error: error.message || 'Failed to create user' },
+      { error: 'Failed to create user' },
       { status: 500 }
     )
   }

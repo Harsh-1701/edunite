@@ -1,25 +1,22 @@
 // lib/auth.ts
-// Handles password hashing and login tokens
 
 import jwt from 'jsonwebtoken'
 import bcrypt from 'bcryptjs'
 import { cookies } from 'next/headers'
 
-const JWT_SECRET = process.env.JWT_SECRET!
+const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-key'
 
 export interface TokenPayload {
   userId: string
   email: string
-  role: 'student' | 'alumni' | 'admin'
+  role: 'student' | 'alumni' | 'admin' | 'faculty'
 }
 
-// Encrypts password before saving to database
 export async function hashPassword(password: string): Promise<string> {
   const salt = await bcrypt.genSalt(12)
   return bcrypt.hash(password, salt)
 }
 
-// Checks if entered password matches stored password
 export async function comparePassword(
   password: string,
   hash: string
@@ -27,12 +24,10 @@ export async function comparePassword(
   return bcrypt.compare(password, hash)
 }
 
-// Creates a login token for user
 export function generateToken(payload: TokenPayload): string {
   return jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' })
 }
 
-// Verifies if token is valid
 export function verifyToken(token: string): TokenPayload | null {
   try {
     return jwt.verify(token, JWT_SECRET) as TokenPayload
@@ -41,7 +36,6 @@ export function verifyToken(token: string): TokenPayload | null {
   }
 }
 
-// Saves login token in browser cookie
 export async function setAuthCookie(token: string) {
   const cookieStore = await cookies()
   cookieStore.set('token', token, {
@@ -53,8 +47,12 @@ export async function setAuthCookie(token: string) {
   })
 }
 
-// Removes login token (logout)
 export async function clearAuthCookie() {
   const cookieStore = await cookies()
   cookieStore.delete('token')
+}
+
+export async function getAuthToken(): Promise<string | null> {
+  const cookieStore = await cookies()
+  return cookieStore.get('token')?.value || null
 }

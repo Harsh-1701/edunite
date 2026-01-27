@@ -1,5 +1,4 @@
 // app/api/auth/logout/route.ts
-// Logs out the user
 
 import { NextResponse } from 'next/server'
 import { clearAuthCookie } from '@/lib/auth'

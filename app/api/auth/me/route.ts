@@ -1,17 +1,13 @@
 // app/api/auth/me/route.ts
-// Returns currently logged in user
 
 import { NextRequest, NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
 import { connectDB } from '@/lib/db'
 import { User } from '@/lib/models'
-import { verifyToken } from '@/lib/auth'
+import { getAuthToken, verifyToken } from '@/lib/auth'
 
 export async function GET(req: NextRequest) {
   try {
-    // Get token from cookies
-    const cookieStore = await cookies()
-    const token = cookieStore.get('token')?.value
+    const token = await getAuthToken()
 
     if (!token) {
       return NextResponse.json(
@@ -20,7 +16,6 @@ export async function GET(req: NextRequest) {
       )
     }
 
-    // Verify token
     const payload = verifyToken(token)
     if (!payload) {
       return NextResponse.json(
@@ -29,10 +24,9 @@ export async function GET(req: NextRequest) {
       )
     }
 
-    // Get user from database
     await connectDB()
     const user = await User.findById(payload.userId)
-    
+
     if (!user) {
       return NextResponse.json(
         { error: 'User not found' },
@@ -40,7 +34,6 @@ export async function GET(req: NextRequest) {
       )
     }
 
-    // Return user data (without password)
     const userData = {
       _id: user._id,
       name: user.name,
@@ -55,7 +48,7 @@ export async function GET(req: NextRequest) {
     }
 
     return NextResponse.json({ user: userData })
-  } catch (error: any) {
+  } catch (error) {
     console.error('Auth check error:', error)
     return NextResponse.json(
       { error: 'Something went wrong' },

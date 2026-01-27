@@ -1,5 +1,4 @@
 // app/api/auth/signup/route.ts
-// Handles new user registration
 
 import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/db'
@@ -13,7 +12,6 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const { name, email, password, role, ...rest } = body
 
-    // Validate required fields
     if (!name || !email || !password || !role) {
       return NextResponse.json(
         { error: 'Name, email, password, and role are required' },
@@ -21,15 +19,13 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Validate role
-    if (!['student', 'alumni'].includes(role)) {
+    if (!['student', 'alumni', 'faculty'].includes(role)) {
       return NextResponse.json(
         { error: 'Invalid role' },
         { status: 400 }
       )
     }
 
-    // Check password length
     if (password.length < 6) {
       return NextResponse.json(
         { error: 'Password must be at least 6 characters' },
@@ -37,7 +33,6 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Check if email already exists
     const existingUser = await User.findOne({ email: email.toLowerCase() })
     if (existingUser) {
       return NextResponse.json(
@@ -46,20 +41,17 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Hash password
     const hashedPassword = await hashPassword(password)
 
-    // Create new user
     const user = await User.create({
       name,
       email: email.toLowerCase(),
       password: hashedPassword,
       role,
-      isVerified: role === 'student', // Students are auto-verified
+      isVerified: role === 'student',
       ...rest,
     })
 
-    // Create token
     const token = generateToken({
       userId: user._id.toString(),
       email: user.email,
@@ -68,7 +60,6 @@ export async function POST(req: NextRequest) {
 
     await setAuthCookie(token)
 
-    // Return user data (without password)
     const userData = {
       _id: user._id,
       name: user.name,
@@ -82,10 +73,10 @@ export async function POST(req: NextRequest) {
       message: 'Account created successfully',
       user: userData,
     })
-  } catch (error: any) {
+  } catch (error) {
     console.error('Signup error:', error)
     return NextResponse.json(
-      { error: error.message || 'Something went wrong' },
+      { error: 'Something went wrong' },
       { status: 500 }
     )
   }
