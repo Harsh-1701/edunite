@@ -127,10 +127,17 @@ export default function AdminPage() {
     }
   }
 
-  const filteredUsers = users.filter(user => {
-    const matchesTab = activeTab === 'all' || user.role === activeTab.slice(0, -1) || (activeTab === 'faculty' && user.role === 'faculty')
-    const matchesSearch = user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         user.email.toLowerCase().includes(searchQuery.toLowerCase())
+    const filteredUsers = users.filter((user) => {
+    const roleMap: Record<string, string> = {
+      students: 'student',
+      alumni: 'alumni',
+      faculty: 'faculty',
+    }
+    const matchesTab =
+      activeTab === 'all' || user.role === roleMap[activeTab]
+    const matchesSearch =
+      user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      user.email.toLowerCase().includes(searchQuery.toLowerCase())
     return matchesTab && matchesSearch
   })
 

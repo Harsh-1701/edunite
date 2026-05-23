@@ -2,48 +2,81 @@
 
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { 
-  GraduationCap, Mail, Lock, User, Building, ArrowLeft, Hash, 
-  Briefcase, Shield, Calendar, Award, ChevronRight, Check
+import { useRouter, useSearchParams } from 'next/navigation'
+import {
+  GraduationCap, Mail, Lock, User, Building, ArrowLeft, Hash,
+  Briefcase, Shield, ChevronRight, Check, Eye, EyeOff
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 type RoleType = 'student' | 'alumni' | 'faculty'
 type AlumniProfession = 'employee' | 'employer' | 'freelancer' | 'government' | 'entrepreneur' | 'other'
 
-export default function SignupPage() {
+const branches = [
+  { value: 'CSE', label: 'Computer Science (CSE)' },
+  { value: 'ECE', label: 'Electronics & Communication (ECE)' },
+  { value: 'ME', label: 'Mechanical Engineering (ME)' },
+  { value: 'CE', label: 'Civil Engineering (CE)' },
+  { value: 'EE', label: 'Electrical Engineering (EE)' },
+  { value: 'IT', label: 'Information Technology (IT)' },
+  { value: 'Other', label: 'Other' },
+]
+
+const designations = [
+  { value: 'Professor', label: 'Professor' },
+  { value: 'Associate Professor', label: 'Associate Professor' },
+  { value: 'Assistant Professor', label: 'Assistant Professor' },
+  { value: 'Lecturer', label: 'Lecturer' },
+  { value: 'HOD', label: 'HOD (Head of Department)' },
+  { value: 'Dean', label: 'Dean' },
+  { value: 'Lab Instructor', label: 'Lab Instructor' },
+  { value: 'Other', label: 'Other' },
+]
+
+const professions = [
+  { id: 'employee', label: 'Employee', description: 'Working at a company' },
+  { id: 'employer', label: 'Employer / Founder', description: 'Running own business' },
+  { id: 'freelancer', label: 'Freelancer', description: 'Self-employed / Consultant' },
+  { id: 'government', label: 'Government Job', description: 'Public sector employee' },
+  { id: 'entrepreneur', label: 'Entrepreneur', description: 'Building a startup' },
+  { id: 'other', label: 'Something Else', description: 'Describe your profession' },
+]
+
+function SignupContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
-  
+  const [showPassword, setShowPassword] = useState(false)
+
   const [formData, setFormData] = useState({
-    // Common
     role: '' as RoleType | '',
     name: '',
     email: '',
     password: '',
     branch: '',
-    
-    // Student
     usn: '',
     graduationYear: '',
-    
-    // Alumni
     yearOfGraduation: '',
     profession: '' as AlumniProfession | '',
     companyName: '',
     jobTitle: '',
     otherProfession: '',
-    
-    // Faculty
     designation: '',
     yearsOfExperience: '',
-    department: '',
     specialization: '',
   })
+
+  // Auto-set role from URL and skip to step 2
+  useEffect(() => {
+    const roleParam = searchParams.get('role')
+    if (roleParam && ['student', 'alumni', 'faculty'].includes(roleParam)) {
+      setFormData(prev => ({ ...prev, role: roleParam as RoleType }))
+      setStep(2)
+    }
+  }, [searchParams])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     setFormData(prev => ({
@@ -57,8 +90,8 @@ export default function SignupPage() {
     setStep(2)
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
     setLoading(true)
 
     try {
@@ -78,7 +111,6 @@ export default function SignupPage() {
           jobTitle: formData.jobTitle,
           designation: formData.designation,
           yearsOfExperience: formData.yearsOfExperience,
-          department: formData.department,
           specialization: formData.specialization,
           otherProfession: formData.otherProfession,
         }),
@@ -100,60 +132,27 @@ export default function SignupPage() {
   }
 
   const roles = [
-    { 
-      id: 'student' as RoleType, 
-      label: 'Student', 
-      icon: GraduationCap, 
+    {
+      id: 'student' as RoleType,
+      label: 'Student',
+      icon: GraduationCap,
       description: 'Find mentors, get career guidance & job referrals',
       color: 'from-purple-500 to-indigo-500'
     },
-    { 
-      id: 'alumni' as RoleType, 
-      label: 'Alumni', 
-      icon: Briefcase, 
+    {
+      id: 'alumni' as RoleType,
+      label: 'Alumni',
+      icon: Briefcase,
       description: 'Give back, mentor students & hire talent',
       color: 'from-blue-500 to-cyan-500'
     },
-    { 
-      id: 'faculty' as RoleType, 
-      label: 'Faculty', 
-      icon: Shield, 
+    {
+      id: 'faculty' as RoleType,
+      label: 'Faculty',
+      icon: Shield,
       description: 'Guide students & manage platform',
       color: 'from-green-500 to-emerald-500'
     },
-  ]
-
-  const branches = [
-    'Computer Science (CSE)',
-    'Electronics & Communication (ECE)',
-    'Mechanical Engineering (ME)',
-    'Civil Engineering (CE)',
-    'Electrical Engineering (EE)',
-    'Information Technology (IT)',
-    'Chemical Engineering',
-    'Aerospace Engineering',
-    'Other'
-  ]
-
-  const designations = [
-    'Professor',
-    'Associate Professor',
-    'Assistant Professor',
-    'Lecturer',
-    'HOD (Head of Department)',
-    'Dean',
-    'Lab Instructor',
-    'Research Associate',
-    'Other'
-  ]
-
-  const professions = [
-    { id: 'employee', label: 'Employee', description: 'Working at a company' },
-    { id: 'employer', label: 'Employer / Founder', description: 'Running own business' },
-    { id: 'freelancer', label: 'Freelancer', description: 'Self-employed / Consultant' },
-    { id: 'government', label: 'Government Job', description: 'Public sector employee' },
-    { id: 'entrepreneur', label: 'Entrepreneur', description: 'Building a startup' },
-    { id: 'other', label: 'Something Else', description: 'Describe your profession' },
   ]
 
   const currentYear = new Date().getFullYear()
@@ -163,9 +162,9 @@ export default function SignupPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-indigo-50 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800 flex items-center justify-center p-4 py-24">
       <div className="w-full max-w-lg">
-        
+
         {/* Back Button */}
-        <button 
+        <button
           onClick={() => step > 1 ? setStep(step - 1) : router.push('/')}
           className="inline-flex items-center gap-2 text-gray-600 dark:text-gray-300 hover:text-purple-600 mb-6 transition-colors"
         >
@@ -178,8 +177,8 @@ export default function SignupPage() {
           {[1, 2, 3].map((s) => (
             <React.Fragment key={s}>
               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-all ${
-                step >= s 
-                  ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white' 
+                step >= s
+                  ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white'
                   : 'bg-gray-200 dark:bg-slate-700 text-gray-500'
               }`}>
                 {step > s ? <Check className="w-4 h-4" /> : s}
@@ -193,7 +192,7 @@ export default function SignupPage() {
 
         {/* Card */}
         <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-xl p-8">
-          
+
           {/* Step 1: Role Selection */}
           {step === 1 && (
             <>
@@ -256,7 +255,7 @@ export default function SignupPage() {
               </div>
 
               <form onSubmit={(e) => { e.preventDefault(); setStep(3); }} className="space-y-5">
-                
+
                 {/* Full Name */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -316,7 +315,7 @@ export default function SignupPage() {
                   </div>
                 </div>
 
-                {/* Password */}
+                {/* Password with eye toggle */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Create a Password *
@@ -324,15 +323,22 @@ export default function SignupPage() {
                   <div className="relative">
                     <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                     <input
-                      type="password"
+                      type={showPassword ? 'text' : 'password'}
                       name="password"
                       value={formData.password}
                       onChange={handleChange}
                       placeholder="Minimum 6 characters"
                       required
                       minLength={6}
-                      className="w-full pl-12 pr-4 py-3 rounded-xl border-2 border-gray-200 dark:border-slate-600 bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white focus:border-purple-500 focus:outline-none transition-colors"
+                      className="w-full pl-12 pr-12 py-3 rounded-xl border-2 border-gray-200 dark:border-slate-600 bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white focus:border-purple-500 focus:outline-none transition-colors"
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                    >
+                      {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    </button>
                   </div>
                 </div>
 
@@ -350,7 +356,7 @@ export default function SignupPage() {
                   >
                     <option value="">Select Branch</option>
                     {branches.map(branch => (
-                      <option key={branch} value={branch}>{branch}</option>
+                      <option key={branch.value} value={branch.value}>{branch.label}</option>
                     ))}
                   </select>
                 </div>
@@ -413,7 +419,7 @@ export default function SignupPage() {
                       >
                         <option value="">Select Designation</option>
                         {designations.map(d => (
-                          <option key={d} value={d}>{d}</option>
+                          <option key={d.value} value={d.value}>{d.label}</option>
                         ))}
                       </select>
                     </div>
@@ -461,7 +467,7 @@ export default function SignupPage() {
             </>
           )}
 
-          {/* Step 3: Additional Info (For Alumni - Profession Selection) */}
+          {/* Step 3: Final Step */}
           {step === 3 && (
             <>
               {formData.role === 'alumni' ? (
@@ -476,8 +482,6 @@ export default function SignupPage() {
                   </div>
 
                   <form onSubmit={handleSubmit} className="space-y-5">
-                    
-                    {/* Profession Selection */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
                         What do you do? *
@@ -505,11 +509,10 @@ export default function SignupPage() {
                       </div>
                     </div>
 
-                    {/* Company Name - For Employee/Employer */}
                     {(formData.profession === 'employee' || formData.profession === 'employer' || formData.profession === 'government') && (
                       <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                          {formData.profession === 'employer' ? 'Company Name' : 'Organization Name'} *
+                          Organization Name *
                         </label>
                         <div className="relative">
                           <Building className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -526,7 +529,6 @@ export default function SignupPage() {
                       </div>
                     )}
 
-                    {/* Job Title */}
                     {formData.profession && formData.profession !== 'other' && (
                       <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -547,7 +549,6 @@ export default function SignupPage() {
                       </div>
                     )}
 
-                    {/* Other Profession - Textarea */}
                     {formData.profession === 'other' && (
                       <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -575,7 +576,6 @@ export default function SignupPage() {
                   </form>
                 </>
               ) : (
-                // For Student and Faculty - Direct Submit
                 <>
                   <div className="text-center mb-8">
                     <div className="inline-flex p-4 bg-gradient-to-r from-green-500 to-emerald-500 rounded-2xl mb-4">
@@ -589,7 +589,6 @@ export default function SignupPage() {
                     </p>
                   </div>
 
-                  {/* Summary */}
                   <div className="bg-gray-50 dark:bg-slate-700 rounded-xl p-5 mb-6 space-y-3">
                     <div className="flex justify-between">
                       <span className="text-gray-500 dark:text-gray-400">Name</span>
@@ -647,5 +646,17 @@ export default function SignupPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function SignupPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin w-8 h-8 border-4 border-purple-600 border-t-transparent rounded-full" />
+      </div>
+    }>
+      <SignupContent />
+    </Suspense>
   )
 }

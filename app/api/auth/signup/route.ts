@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
     await connectDB()
 
     const body = await req.json()
-    const { name, email, password, role, ...rest } = body
+    const { name, email, password, role, collegeId, ...rest } = body
 
     if (!name || !email || !password || !role) {
       return NextResponse.json(
@@ -33,10 +33,34 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const existingUser = await User.findOne({ email: email.toLowerCase() })
-    if (existingUser) {
+    // Check duplicate email
+    const existingEmail = await User.findOne({ email: email.toLowerCase() })
+    if (existingEmail) {
       return NextResponse.json(
         { error: 'Email already registered' },
+        { status: 400 }
+      )
+    }
+
+    // Check duplicate USN for students
+    if (role === 'student' && collegeId) {
+      const existingUSN = await User.findOne({ collegeId: collegeId.toUpperCase() })
+      if (existingUSN) {
+        return NextResponse.json(
+          { error: 'This USN is already registered. If this is your USN, please login instead.' },
+          { status: 400 }
+        )
+      }
+    }
+
+    // Check duplicate name + role combination (optional extra check)
+    const existingNameRole = await User.findOne({ 
+      name: { $regex: new RegExp(`^${name.trim()}$`, 'i') },
+      role: role
+    })
+    if (existingNameRole) {
+      return NextResponse.json(
+        { error: `A ${role} with this exact name already exists. Please use your full name or contact support.` },
         { status: 400 }
       )
     }
@@ -44,10 +68,11 @@ export async function POST(req: NextRequest) {
     const hashedPassword = await hashPassword(password)
 
     const user = await User.create({
-      name,
+      name: name.trim(),
       email: email.toLowerCase(),
       password: hashedPassword,
       role,
+      collegeId: collegeId ? collegeId.toUpperCase() : undefined,
       isVerified: role === 'student',
       ...rest,
     })

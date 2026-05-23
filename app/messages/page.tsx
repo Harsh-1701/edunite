@@ -1,446 +1,959 @@
-// app/messages/page.tsx
-
 'use client'
 
-import React, { useState } from 'react'
-import { 
-  MessageCircle, Search, Send, Phone, Video, MoreVertical,
-  Users, Megaphone, Bot, ArrowLeft, Heart, ThumbsUp, Smile,
-  Briefcase, GraduationCap, Shield, Clock, Check, CheckCheck,
-  Plus, Image, Paperclip, Mic
+import React, { useState, useRef, useEffect, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
+import {
+  MessageCircle,
+  Search,
+  Send,
+  Phone,
+  Video,
+  Megaphone,
+  Bot,
+  ArrowLeft,
+  Heart,
+  ThumbsUp,
+  Briefcase,
+  Shield,
+  Plus,
+  Image as ImageIcon,
+  CheckCheck,
+  X,
+  Loader2,
+  Sparkles,
 } from 'lucide-react'
-import Link from 'next/link'
 
-// Dummy data for conversations
+import { useAuth } from '@/context/AuthContext'
+import toast from 'react-hot-toast'
+
 const conversations = [
   {
     id: 1,
     name: 'Rahul Kumar',
     role: 'alumni',
-    avatar: null,
     lastMessage: 'Sure, I can help you with the interview prep!',
     time: '2m ago',
     unread: 2,
     online: true,
-    company: 'Google'
+    company: 'Google',
   },
   {
     id: 2,
     name: 'Dr. Priya Sharma',
     role: 'faculty',
-    avatar: null,
     lastMessage: 'The project deadline has been extended.',
     time: '1h ago',
     unread: 0,
     online: true,
-    company: null
+    company: null,
   },
   {
     id: 3,
     name: 'Amit Patel',
     role: 'alumni',
-    avatar: null,
     lastMessage: 'Check out this job opening at Microsoft!',
     time: '3h ago',
     unread: 1,
     online: false,
-    company: 'Microsoft'
+    company: 'Microsoft',
   },
 ]
 
-// Dummy announcements
 const announcements = [
   {
     id: 1,
     author: 'Sneha Reddy',
     role: 'alumni',
     company: 'Amazon',
-    content: '🚀 We are hiring! Amazon is looking for SDE interns. DM me for referral!',
+    content:
+      '🚀 We are hiring! Amazon is looking for SDE interns. DM me for referral!',
     time: '30m ago',
     reactions: { likes: 45, hearts: 12 },
-    type: 'job'
   },
   {
     id: 2,
     author: 'Prof. Vikram Singh',
     role: 'faculty',
-    content: '📢 Research internship opportunity at IISc Bangalore. Interested students please contact the department.',
+    company: null,
+    content:
+      '📢 Research internship opportunity at IISc Bangalore.',
     time: '2h ago',
     reactions: { likes: 28, hearts: 5 },
-    type: 'research'
-  },
-  {
-    id: 3,
-    author: 'Karthik Nair',
-    role: 'alumni',
-    company: 'Goldman Sachs',
-    content: '💼 Goldman Sachs summer internship applications are open! Last date: March 15. Happy to refer deserving candidates.',
-    time: '5h ago',
-    reactions: { likes: 67, hearts: 23 },
-    type: 'internship'
   },
 ]
 
-// Dummy messages for a conversation
 const dummyMessages = [
-  { id: 1, sender: 'other', text: 'Hi! I saw your profile. I am interested in learning about product management.', time: '10:30 AM' },
-  { id: 2, sender: 'me', text: 'Hello! Sure, I would be happy to help. What specific areas are you interested in?', time: '10:32 AM' },
-  { id: 3, sender: 'other', text: 'I want to transition from engineering to PM. Can you guide me on how to prepare?', time: '10:35 AM' },
-  { id: 4, sender: 'me', text: 'Absolutely! First, I would recommend understanding the basics of product thinking. Have you read any PM books?', time: '10:38 AM' },
-  { id: 5, sender: 'other', text: 'I have started reading "Cracking the PM Interview". Is that a good start?', time: '10:40 AM' },
-  { id: 6, sender: 'me', text: 'That is an excellent choice! Also focus on case studies and practice product sense questions.', time: '10:42 AM' },
+  {
+    id: 1,
+    sender: 'other',
+    text: 'Hi! I am interested in learning about product management.',
+    time: '10:30 AM',
+  },
+  {
+    id: 2,
+    sender: 'me',
+    text: 'Hello! Sure, what specific areas are you interested in?',
+    time: '10:32 AM',
+  },
 ]
 
 type TabType = 'chats' | 'announcements' | 'ai-assistant'
 
-export default function MessagesPage() {
-  const [activeTab, setActiveTab] = useState<TabType>('chats')
-  const [selectedChat, setSelectedChat] = useState<number | null>(null)
+type AiMessage = {
+  role: 'user' | 'assistant'
+  content: string
+  image?: string
+}
+
+function MessagesContent() {
+  const searchParams = useSearchParams()
+  const { user } = useAuth()
+
+  const defaultTab =
+    (searchParams.get('tab') as TabType) || 'chats'
+
+  const [activeTab, setActiveTab] =
+    useState<TabType>(defaultTab)
+
+  const [selectedChat, setSelectedChat] =
+    useState<number | null>(null)
+
   const [message, setMessage] = useState('')
+  const [feedPost, setFeedPost] = useState('')
+
+  // AI STATES
   const [aiMessage, setAiMessage] = useState('')
-  const [aiMessages, setAiMessages] = useState([
-    { role: 'assistant', content: 'Hello! I am EduNite AI Assistant. I can help you with:\n\n• Resume and CV building\n• Interview preparation tips\n• Career guidance\n• Finding the right mentor\n• Job search strategies\n\nHow can I assist you today?' }
+
+  const [aiMessages, setAiMessages] = useState<AiMessage[]>([
+    {
+      role: 'assistant',
+      content:
+        `👋 Welcome to EduNite AI
+
+I can help you with:
+
+• Resume building
+• Interview preparation
+• Career guidance
+• Internship roadmap
+• Research opportunities
+• LinkedIn improvements
+• Skill recommendations
+
+Try asking:
+"Build my resume"
+or
+"Help me prepare for interviews"`
+    },
   ])
 
-  const handleSendMessage = (e: React.FormEvent) => {
+  const [aiLoading, setAiLoading] = useState(false)
+
+  const [selectedImage, setSelectedImage] =
+    useState<string | null>(null)
+
+  const [imagePreview, setImagePreview] =
+    useState<string | null>(null)
+
+  const aiChatEndRef = useRef<HTMLDivElement>(null)
+
+  const imageInputRef =
+    useRef<HTMLInputElement>(null)
+
+  const isAlumniOrFaculty =
+    user?.role === 'alumni' ||
+    user?.role === 'faculty'
+
+  useEffect(() => {
+    aiChatEndRef.current?.scrollIntoView({
+      behavior: 'smooth',
+    })
+  }, [aiMessages])
+
+  const handleSendMessage = (
+    e: React.FormEvent
+  ) => {
     e.preventDefault()
+
     if (!message.trim()) return
-    // In real app, send to backend
+
     setMessage('')
   }
 
-  const handleAiSend = (e: React.FormEvent) => {
+  const handleFeedPost = (
+    e: React.FormEvent
+  ) => {
     e.preventDefault()
-    if (!aiMessage.trim()) return
-    
-    setAiMessages(prev => [...prev, { role: 'user', content: aiMessage }])
-    
-    // Simulate AI response
-    setTimeout(() => {
-      setAiMessages(prev => [...prev, { 
-        role: 'assistant', 
-        content: 'Thank you for your question! Based on your query, here are some suggestions:\n\n1. Focus on highlighting your key achievements\n2. Tailor your resume for each application\n3. Use action verbs and quantify results\n\nWould you like me to elaborate on any of these points?'
-      }])
-    }, 1000)
-    
-    setAiMessage('')
+
+    if (!feedPost.trim()) return
+
+    toast.success('Post published!')
+    setFeedPost('')
   }
 
-  const selectedConversation = conversations.find(c => c.id === selectedChat)
+  const handleImageSelect = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0]
+
+    if (!file) return
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image must be less than 5MB')
+      return
+    }
+
+    const reader = new FileReader()
+
+    reader.onloadend = () => {
+      const result = reader.result as string
+      setSelectedImage(result)
+      setImagePreview(result)
+    }
+
+    reader.readAsDataURL(file)
+  }
+
+  const removeImage = () => {
+    setSelectedImage(null)
+    setImagePreview(null)
+
+    if (imageInputRef.current) {
+      imageInputRef.current.value = ''
+    }
+  }
+
+  const handleAiSend = async (
+    e: React.FormEvent
+  ) => {
+    e.preventDefault()
+
+    if (!aiMessage.trim() && !selectedImage)
+      return
+
+    const userMsg: AiMessage = {
+      role: 'user',
+      content:
+        aiMessage ||
+        (selectedImage
+          ? 'Analyze this image'
+          : ''),
+      image: imagePreview || undefined,
+    }
+
+    setAiMessages(prev => [...prev, userMsg])
+
+    const currentMessage = aiMessage
+    const currentImage = selectedImage
+
+    setAiMessage('')
+    setSelectedImage(null)
+    setImagePreview(null)
+
+    if (imageInputRef.current) {
+      imageInputRef.current.value = ''
+    }
+
+    setAiLoading(true)
+
+    try {
+      let response = ''
+
+      if (currentImage) {
+        const res = await fetch(
+          '/api/ai/analyze-image',
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type':
+                'application/json',
+            },
+            body: JSON.stringify({
+              image: currentImage,
+              prompt:
+                currentMessage ||
+                'Analyze this image.',
+            }),
+          }
+        )
+
+        const data = await res.json()
+
+        if (!res.ok)
+          throw new Error(data.error)
+
+        response = data.response
+      } else {
+        const res = await fetch(
+          '/api/ai/chat',
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type':
+                'application/json',
+            },
+            body: JSON.stringify({
+              message: currentMessage,
+            }),
+          }
+        )
+
+        const data = await res.json()
+
+        if (!res.ok)
+          throw new Error(data.error)
+
+        response = data.response
+      }
+
+      setAiMessages(prev => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: response,
+        },
+      ])
+    } catch (error) {
+      setAiMessages(prev => [
+        ...prev,
+        {
+          role: 'assistant',
+          content:
+            '❌ Something went wrong while generating AI response.',
+        },
+      ])
+
+      toast.error('AI response failed')
+    } finally {
+      setAiLoading(false)
+    }
+  }
+
+  const selectedConversation =
+    conversations.find(
+      c => c.id === selectedChat
+    )
+
+  const renderAiContent = (
+    content: string
+  ) => {
+    return content
+      .split('\n')
+      .map((line, i) => {
+        if (!line.trim())
+          return <br key={i} />
+
+        return (
+          <p
+            key={i}
+            className="leading-7"
+          >
+            {line}
+          </p>
+        )
+      })
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-slate-900 pt-20">
-      <div className="max-w-7xl mx-auto h-[calc(100vh-80px)]">
-        <div className="flex h-full bg-white dark:bg-slate-800 rounded-t-3xl overflow-hidden shadow-xl">
-          
-          {/* Sidebar */}
-          <div className={`w-full md:w-96 border-r border-gray-200 dark:border-slate-700 flex flex-col ${selectedChat ? 'hidden md:flex' : 'flex'}`}>
-            
-            {/* Tabs */}
-            <div className="p-4 border-b border-gray-200 dark:border-slate-700">
+    <div className="fixed inset-0 overflow-hidden bg-slate-950 pt-20">
+      <div className="h-[calc(100vh-80px)] max-w-7xl mx-auto px-4 pb-4 overflow-hidden">
+        <div className="h-full rounded-3xl overflow-hidden border border-white/10 bg-slate-900 shadow-2xl flex">
+
+          {/* SIDEBAR */}
+          <div
+            className={`w-full md:w-96 border-r border-white/10 flex flex-col bg-slate-900 ${
+              (selectedChat ||
+                activeTab ===
+                  'ai-assistant')
+                ? 'hidden md:flex'
+                : 'flex'
+            }`}
+          >
+            {/* TABS */}
+            <div className="p-4 border-b border-white/10">
               <div className="flex gap-2">
                 {[
-                  { id: 'chats', label: 'Chats', icon: MessageCircle },
-                  { id: 'announcements', label: 'Feed', icon: Megaphone },
-                  { id: 'ai-assistant', label: 'AI', icon: Bot },
-                ].map((tab) => (
+                  {
+                    id: 'chats',
+                    label: 'Chats',
+                    icon: MessageCircle,
+                  },
+                  {
+                    id: 'announcements',
+                    label: 'Feed',
+                    icon: Megaphone,
+                  },
+                  {
+                    id: 'ai-assistant',
+                    label: 'AI',
+                    icon: Bot,
+                  },
+                ].map(tab => (
                   <button
                     key={tab.id}
-                    onClick={() => { setActiveTab(tab.id as TabType); setSelectedChat(null); }}
-                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-medium transition-all ${
+                    onClick={() => {
+                      setActiveTab(
+                        tab.id as TabType
+                      )
+                      setSelectedChat(null)
+                    }}
+                    className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl transition-all ${
                       activeTab === tab.id
                         ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white'
-                        : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700'
+                        : 'bg-white/5 text-slate-300 hover:bg-white/10'
                     }`}
                   >
                     <tab.icon className="w-4 h-4" />
-                    <span className="text-sm">{tab.label}</span>
+
+                    <span className="text-sm font-medium">
+                      {tab.label}
+                    </span>
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* Search */}
-            <div className="p-4">
-              <div className="relative">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search..."
-                  className="w-full pl-12 pr-4 py-3 rounded-xl border-2 border-gray-200 dark:border-slate-600 bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white focus:border-purple-500 focus:outline-none"
-                />
-              </div>
-            </div>
+            {/* SEARCH */}
+            {activeTab !==
+              'ai-assistant' && (
+              <div className="p-4">
+                <div className="relative">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
 
-            {/* Content based on tab */}
-            <div className="flex-1 overflow-y-auto">
-              
-              {/* Chats List */}
+                  <input
+                    type="text"
+                    placeholder="Search..."
+                    className="w-full pl-11 pr-4 py-3 rounded-2xl bg-white/5 border border-white/10 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* CONTENT */}
+            <div className="flex-1 overflow-y-auto p-3">
+
+              {/* CHATS */}
               {activeTab === 'chats' && (
-                <div className="space-y-1 p-2">
-                  {conversations.map((conv) => (
+                <div className="space-y-2">
+                  {conversations.map(conv => (
                     <button
                       key={conv.id}
-                      onClick={() => setSelectedChat(conv.id)}
-                      className={`w-full p-3 rounded-xl flex items-center gap-3 transition-all ${
+                      onClick={() =>
+                        setSelectedChat(conv.id)
+                      }
+                      className={`w-full p-4 rounded-2xl transition-all text-left ${
                         selectedChat === conv.id
-                          ? 'bg-purple-50 dark:bg-purple-900/30'
-                          : 'hover:bg-gray-100 dark:hover:bg-slate-700'
+                          ? 'bg-purple-600/20 border border-purple-500/30'
+                          : 'bg-white/5 hover:bg-white/10 border border-transparent'
                       }`}
                     >
-                      <div className="relative">
-                        <div className="w-12 h-12 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-full flex items-center justify-center text-white font-semibold">
-                          {conv.name.split(' ').map(n => n[0]).join('')}
+                      <div className="flex items-center gap-3">
+                        <div className="relative">
+                          <div className="w-12 h-12 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 flex items-center justify-center text-white font-semibold">
+                            {conv.name
+                              .split(' ')
+                              .map(n => n[0])
+                              .join('')}
+                          </div>
+
+                          {conv.online && (
+                            <div className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-green-400 border-2 border-slate-900" />
+                          )}
                         </div>
-                        {conv.online && (
-                          <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 border-white dark:border-slate-800 rounded-full" />
-                        )}
+
+                        <div className="flex-1 overflow-hidden">
+                          <div className="flex justify-between items-center">
+                            <h3 className="text-white font-medium truncate">
+                              {conv.name}
+                            </h3>
+
+                            <span className="text-xs text-slate-400">
+                              {conv.time}
+                            </span>
+                          </div>
+
+                          <p className="text-sm text-slate-400 truncate">
+                            {conv.lastMessage}
+                          </p>
+                        </div>
                       </div>
-                      <div className="flex-1 text-left">
-                        <div className="flex items-center justify-between">
-                          <span className="font-medium text-gray-900 dark:text-white">{conv.name}</span>
-                          <span className="text-xs text-gray-500">{conv.time}</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          {conv.role === 'alumni' && <Briefcase className="w-3 h-3 text-blue-500" />}
-                          {conv.role === 'faculty' && <Shield className="w-3 h-3 text-green-500" />}
-                          <span className="text-sm text-gray-500 dark:text-gray-400 truncate">
-                            {conv.company && `${conv.company} • `}{conv.lastMessage}
-                          </span>
-                        </div>
-                      </div>
-                      {conv.unread > 0 && (
-                        <div className="w-5 h-5 bg-purple-600 rounded-full text-xs text-white flex items-center justify-center">
-                          {conv.unread}
-                        </div>
-                      )}
                     </button>
                   ))}
                 </div>
               )}
 
-              {/* Announcements Feed */}
-              {activeTab === 'announcements' && (
-                <div className="p-4 space-y-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="font-semibold text-gray-900 dark:text-white">Opportunity Feed</h3>
-                    <span className="text-xs text-gray-500">Alumni & Faculty posts</span>
-                  </div>
-                  
-                  {announcements.map((post) => (
-                    <div key={post.id} className="bg-gray-50 dark:bg-slate-700 rounded-2xl p-4">
-                      <div className="flex items-start gap-3">
-                        <div className="w-10 h-10 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-full flex items-center justify-center text-white text-sm font-semibold">
-                          {post.author.split(' ').map(n => n[0]).join('')}
+              {/* ANNOUNCEMENTS */}
+              {activeTab ===
+                'announcements' && (
+                <div className="space-y-4">
+
+                  {isAlumniOrFaculty && (
+                    <form
+                      onSubmit={
+                        handleFeedPost
+                      }
+                    >
+                      <div className="bg-white/5 border border-white/10 rounded-3xl p-4">
+                        <textarea
+                          value={feedPost}
+                          onChange={e =>
+                            setFeedPost(
+                              e.target.value
+                            )
+                          }
+                          rows={3}
+                          placeholder="Share something..."
+                          className="w-full bg-transparent text-white placeholder:text-slate-500 resize-none focus:outline-none"
+                        />
+
+                        <div className="flex justify-end mt-3">
+                          <button
+                            type="submit"
+                            className="px-5 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white"
+                          >
+                            Post
+                          </button>
                         </div>
+                      </div>
+                    </form>
+                  )}
+
+                  {announcements.map(post => (
+                    <div
+                      key={post.id}
+                      className="bg-white/5 border border-white/10 rounded-3xl p-5"
+                    >
+                      <div className="flex gap-3">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 flex items-center justify-center text-white">
+                          {post.author
+                            .split(' ')
+                            .map(n => n[0])
+                            .join('')}
+                        </div>
+
                         <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium text-gray-900 dark:text-white">{post.author}</span>
-                            {post.role === 'alumni' && (
-                              <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-600 text-xs rounded-full">
-                                {post.company}
-                              </span>
-                            )}
-                            {post.role === 'faculty' && (
-                              <span className="px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-600 text-xs rounded-full">
-                                Faculty
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-gray-700 dark:text-gray-300 mt-2 text-sm leading-relaxed">
+                          <h3 className="text-white font-medium">
+                            {post.author}
+                          </h3>
+
+                          <p className="text-sm text-slate-300 mt-2">
                             {post.content}
                           </p>
-                          <div className="flex items-center gap-4 mt-3">
-                            <button className="flex items-center gap-1 text-gray-500 hover:text-blue-500 transition-colors">
+
+                          <div className="flex items-center gap-4 mt-4">
+                            <button className="flex items-center gap-1 text-slate-400 hover:text-blue-400">
                               <ThumbsUp className="w-4 h-4" />
-                              <span className="text-xs">{post.reactions.likes}</span>
+                              <span className="text-xs">
+                                {
+                                  post.reactions
+                                    .likes
+                                }
+                              </span>
                             </button>
-                            <button className="flex items-center gap-1 text-gray-500 hover:text-red-500 transition-colors">
+
+                            <button className="flex items-center gap-1 text-slate-400 hover:text-red-400">
                               <Heart className="w-4 h-4" />
-                              <span className="text-xs">{post.reactions.hearts}</span>
+                              <span className="text-xs">
+                                {
+                                  post.reactions
+                                    .hearts
+                                }
+                              </span>
                             </button>
-                            <span className="text-xs text-gray-400 ml-auto">{post.time}</span>
                           </div>
                         </div>
                       </div>
                     </div>
                   ))}
-
-                  <p className="text-center text-sm text-gray-500 dark:text-gray-400 py-4">
-                    💡 Students can react to posts. Alumni & Faculty can post opportunities.
-                  </p>
                 </div>
               )}
 
-              {/* AI Assistant */}
-              {activeTab === 'ai-assistant' && (
-                <div className="flex flex-col h-full">
-                  <div className="flex-1 p-4 space-y-4 overflow-y-auto">
-                    {aiMessages.map((msg, index) => (
+              {/* AI QUICK ACTIONS */}
+              {activeTab ===
+                'ai-assistant' && (
+                <div className="space-y-3">
+                  {[
+                    'Build My Resume',
+                    'Interview Prep',
+                    'Career Guidance',
+                    'Review Resume',
+                  ].map((item, i) => (
+                    <button
+                      key={i}
+                      className="w-full text-left p-4 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-white"
+                    >
+                      {item}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* MAIN AREA */}
+          <div className="flex-1 flex flex-col overflow-hidden">
+
+            {/* AI ASSISTANT */}
+            {activeTab ===
+              'ai-assistant' && (
+              <div className="flex flex-col h-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 overflow-hidden">
+
+                {/* HEADER */}
+<div className="flex items-center gap-4 px-4 md:px-6 py-5 border-b border-white/10 bg-white/5 backdrop-blur-xl">
+
+  {/* MOBILE BACK BUTTON */}
+  <button
+    onClick={() => {
+      setActiveTab('chats')
+      setSelectedChat(null)
+    }}
+    className="md:hidden p-2 rounded-xl bg-white/10 hover:bg-white/20 transition-all active:scale-95"
+  >
+    <ArrowLeft className="w-5 h-5 text-white" />
+  </button>
+
+  {/* AI ICON */}
+  <div className="p-3 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 shadow-lg shadow-purple-500/30">
+    <Bot className="w-6 h-6 text-white" />
+  </div>
+
+  {/* TITLE */}
+  <div className="flex-1 min-w-0">
+    <h2 className="text-white font-semibold text-lg truncate">
+      EduNite AI
+    </h2>
+
+    <p className="text-sm text-purple-300 truncate">
+      Career Mentor • Resume Builder
+    </p>
+  </div>
+
+  {/* ONLINE STATUS */}
+  <div className="hidden sm:flex items-center gap-2 px-3 py-1 rounded-full bg-green-500/10 border border-green-500/20">
+    <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+
+    <span className="text-xs text-green-300 font-medium">
+      Online
+    </span>
+  </div>
+</div>
+
+                {/* MESSAGES */}
+                <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6 min-h-0">
+                  {aiMessages.map(
+                    (msg, index) => (
                       <div
                         key={index}
-                        className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                        className={`flex ${
+                          msg.role ===
+                          'user'
+                            ? 'justify-end'
+                            : 'justify-start'
+                        }`}
                       >
                         <div
-                          className={`max-w-[85%] rounded-2xl p-4 ${
-                            msg.role === 'user'
-                              ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white'
-                              : 'bg-gray-100 dark:bg-slate-700 text-gray-900 dark:text-white'
+                          className={`max-w-[80%] rounded-3xl px-5 py-4 shadow-xl ${
+                            msg.role ===
+                            'user'
+                              ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-br-md'
+                              : 'bg-white/10 border border-white/10 text-white rounded-bl-md backdrop-blur-xl'
                           }`}
                         >
-                          {msg.role === 'assistant' && (
-                            <div className="flex items-center gap-2 mb-2">
-                              <Bot className="w-4 h-4 text-purple-500" />
-                              <span className="text-xs font-medium text-purple-500">EduNite AI</span>
+                          {msg.role ===
+                            'assistant' && (
+                            <div className="flex items-center gap-2 mb-3">
+                              <Sparkles className="w-4 h-4 text-purple-300" />
+
+                              <span className="text-xs uppercase tracking-wider text-purple-300 font-semibold">
+                                EduNite AI
+                              </span>
                             </div>
                           )}
-                          <p className="text-sm whitespace-pre-line">{msg.content}</p>
+
+                          {msg.image && (
+                            <img
+                              src={msg.image}
+                              alt="Uploaded"
+                              className="rounded-2xl mb-4 max-h-72 object-contain"
+                            />
+                          )}
+
+                          <div className="text-sm leading-7">
+                            {msg.role ===
+                            'assistant'
+                              ? renderAiContent(
+                                  msg.content
+                                )
+                              : (
+                                <p className="whitespace-pre-wrap">
+                                  {
+                                    msg.content
+                                  }
+                                </p>
+                              )}
+                          </div>
                         </div>
                       </div>
-                    ))}
+                    )
+                  )}
+
+                  {aiLoading && (
+                    <div className="flex justify-start">
+                      <div className="bg-white/10 border border-white/10 rounded-3xl px-5 py-4 flex items-center gap-3 backdrop-blur-xl">
+                        <Loader2 className="w-5 h-5 animate-spin text-purple-300" />
+
+                        <span className="text-sm text-purple-200">
+                          EduNite AI is thinking...
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  <div ref={aiChatEndRef} />
+                </div>
+
+                {/* IMAGE PREVIEW */}
+                {imagePreview && (
+                  <div className="px-6 pb-3">
+                    <div className="relative inline-block">
+                      <img
+                        src={imagePreview}
+                        alt="Preview"
+                        className="h-24 rounded-2xl border border-white/10"
+                      />
+
+                      <button
+                        onClick={
+                          removeImage
+                        }
+                        className="absolute -top-2 -right-2 p-1.5 rounded-full bg-red-500 text-white"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
                   </div>
-                  
-                  <form onSubmit={handleAiSend} className="p-4 border-t border-gray-200 dark:border-slate-700">
-                    <div className="flex gap-2">
+                )}
+
+                {/* INPUT */}
+                <div className="p-5 border-t border-white/10 bg-slate-900/90 backdrop-blur-2xl">
+                  <form
+                    onSubmit={
+                      handleAiSend
+                    }
+                    className="flex items-center gap-3"
+                  >
+                    <input
+                      ref={
+                        imageInputRef
+                      }
+                      type="file"
+                      accept="image/*"
+                      onChange={
+                        handleImageSelect
+                      }
+                      className="hidden"
+                    />
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        imageInputRef.current?.click()
+                      }
+                      className="p-3 rounded-2xl bg-white/10 hover:bg-white/20 transition-all border border-white/10"
+                    >
+                      <ImageIcon className="w-5 h-5 text-purple-200" />
+                    </button>
+
+                    <input
+                      type="text"
+                      value={aiMessage}
+                      onChange={e =>
+                        setAiMessage(
+                          e.target.value
+                        )
+                      }
+                      placeholder="Ask about resumes, internships, interviews..."
+                      disabled={aiLoading}
+                      className="flex-1 px-5 py-4 rounded-2xl bg-white/10 border border-white/10 text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+
+                    <button
+                      type="submit"
+                      disabled={
+                        aiLoading ||
+                        (!aiMessage.trim() &&
+                          !selectedImage)
+                      }
+                      className="p-4 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-xl hover:scale-105 transition-all disabled:opacity-50"
+                    >
+                      {aiLoading ? (
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                      ) : (
+                        <Send className="w-5 h-5" />
+                      )}
+                    </button>
+                  </form>
+                </div>
+              </div>
+            )}
+
+            {/* CHAT AREA */}
+            {activeTab === 'chats' &&
+              selectedChat &&
+              selectedConversation && (
+                <>
+                  <div className="p-5 border-b border-white/10 flex items-center gap-4 bg-slate-900">
+                    <button
+                      onClick={() =>
+                        setSelectedChat(
+                          null
+                        )
+                      }
+                      className="md:hidden"
+                    >
+                      <ArrowLeft className="w-5 h-5 text-white" />
+                    </button>
+
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 flex items-center justify-center text-white">
+                      {selectedConversation.name
+                        .split(' ')
+                        .map(n => n[0])
+                        .join('')}
+                    </div>
+
+                    <div className="flex-1">
+                      <h3 className="text-white font-medium">
+                        {
+                          selectedConversation.name
+                        }
+                      </h3>
+
+                      <p className="text-sm text-slate-400">
+                        {
+                          selectedConversation.company
+                        }
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button className="p-2 rounded-xl hover:bg-white/10">
+                        <Phone className="w-5 h-5 text-white" />
+                      </button>
+
+                      <button className="p-2 rounded-xl hover:bg-white/10">
+                        <Video className="w-5 h-5 text-white" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex-1 overflow-y-auto p-6 space-y-5 bg-slate-950">
+                    {dummyMessages.map(
+                      msg => (
+                        <div
+                          key={msg.id}
+                          className={`flex ${
+                            msg.sender ===
+                            'me'
+                              ? 'justify-end'
+                              : 'justify-start'
+                          }`}
+                        >
+                          <div
+                            className={`max-w-[70%] rounded-3xl px-5 py-4 ${
+                              msg.sender ===
+                              'me'
+                                ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white'
+                                : 'bg-white/10 text-white border border-white/10'
+                            }`}
+                          >
+                            <p>
+                              {msg.text}
+                            </p>
+
+                            <div className="flex justify-end mt-2">
+                              <span className="text-xs opacity-70">
+                                {msg.time}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    )}
+                  </div>
+
+                  <form
+                    onSubmit={
+                      handleSendMessage
+                    }
+                    className="p-5 border-t border-white/10 bg-slate-900"
+                  >
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        className="p-3 rounded-2xl bg-white/10"
+                      >
+                        <Plus className="w-5 h-5 text-white" />
+                      </button>
+
                       <input
                         type="text"
-                        value={aiMessage}
-                        onChange={(e) => setAiMessage(e.target.value)}
-                        placeholder="Ask about resume, interviews, careers..."
-                        className="flex-1 px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-slate-600 bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white focus:border-purple-500 focus:outline-none"
+                        value={message}
+                        onChange={e =>
+                          setMessage(
+                            e.target.value
+                          )
+                        }
+                        placeholder="Type a message..."
+                        className="flex-1 px-5 py-4 rounded-2xl bg-white/10 border border-white/10 text-white placeholder:text-slate-400 focus:outline-none"
                       />
+
                       <button
                         type="submit"
-                        className="p-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl hover:opacity-90 transition-opacity"
+                        className="p-4 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white"
                       >
                         <Send className="w-5 h-5" />
                       </button>
                     </div>
                   </form>
-                </div>
+                </>
               )}
-            </div>
-          </div>
 
-          {/* Chat Area */}
-          <div className={`flex-1 flex flex-col ${!selectedChat && activeTab === 'chats' ? 'hidden md:flex' : ''} ${activeTab !== 'chats' ? 'hidden' : ''}`}>
-            {selectedChat && selectedConversation ? (
-              <>
-                {/* Chat Header */}
-                <div className="p-4 border-b border-gray-200 dark:border-slate-700 flex items-center gap-4">
-                  <button
-                    onClick={() => setSelectedChat(null)}
-                    className="md:hidden p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg"
-                  >
-                    <ArrowLeft className="w-5 h-5" />
-                  </button>
-                  <div className="relative">
-                    <div className="w-12 h-12 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-full flex items-center justify-center text-white font-semibold">
-                      {selectedConversation.name.split(' ').map(n => n[0]).join('')}
+            {/* EMPTY */}
+            {activeTab === 'chats' &&
+              !selectedChat && (
+                <div className="flex-1 flex items-center justify-center bg-slate-950">
+                  <div className="text-center">
+                    <div className="inline-flex p-6 rounded-full bg-white/5 mb-4">
+                      <MessageCircle className="w-12 h-12 text-slate-500" />
                     </div>
-                    {selectedConversation.online && (
-                      <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 border-white dark:border-slate-800 rounded-full" />
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-gray-900 dark:text-white">{selectedConversation.name}</h3>
-                    <p className="text-sm text-gray-500">
-                      {selectedConversation.online ? 'Online' : 'Offline'} • {selectedConversation.company}
+
+                    <h3 className="text-2xl font-semibold text-white">
+                      Your Messages
+                    </h3>
+
+                    <p className="text-slate-400 mt-2">
+                      Select a conversation
                     </p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <button className="p-2.5 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-xl transition-colors">
-                      <Phone className="w-5 h-5 text-gray-600 dark:text-gray-300" />
-                    </button>
-                    <button className="p-2.5 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-xl transition-colors">
-                      <Video className="w-5 h-5 text-gray-600 dark:text-gray-300" />
-                    </button>
-                    <button className="p-2.5 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-xl transition-colors">
-                      <MoreVertical className="w-5 h-5 text-gray-600 dark:text-gray-300" />
-                    </button>
-                  </div>
                 </div>
-
-                {/* Messages */}
-                <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                  {/* Encryption Notice */}
-                  <div className="flex justify-center">
-                    <div className="px-4 py-2 bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300 text-xs rounded-full flex items-center gap-2">
-                      <Shield className="w-3 h-3" />
-                      Messages are end-to-end encrypted
-                    </div>
-                  </div>
-
-                  {dummyMessages.map((msg) => (
-                    <div
-                      key={msg.id}
-                      className={`flex ${msg.sender === 'me' ? 'justify-end' : 'justify-start'}`}
-                    >
-                      <div
-                        className={`max-w-[70%] rounded-2xl p-4 ${
-                          msg.sender === 'me'
-                            ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-br-md'
-                            : 'bg-gray-100 dark:bg-slate-700 text-gray-900 dark:text-white rounded-bl-md'
-                        }`}
-                      >
-                        <p className="text-sm">{msg.text}</p>
-                        <div className={`flex items-center justify-end gap-1 mt-1 ${
-                          msg.sender === 'me' ? 'text-white/70' : 'text-gray-500'
-                        }`}>
-                          <span className="text-xs">{msg.time}</span>
-                          {msg.sender === 'me' && <CheckCheck className="w-4 h-4" />}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Message Input */}
-                <form onSubmit={handleSendMessage} className="p-4 border-t border-gray-200 dark:border-slate-700">
-                  <div className="flex items-center gap-2">
-                    <button type="button" className="p-2.5 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-xl transition-colors">
-                      <Plus className="w-5 h-5 text-gray-600 dark:text-gray-300" />
-                    </button>
-                    <button type="button" className="p-2.5 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-xl transition-colors">
-                      <Image className="w-5 h-5 text-gray-600 dark:text-gray-300" />
-                    </button>
-                    <input
-                      type="text"
-                      value={message}
-                      onChange={(e) => setMessage(e.target.value)}
-                      placeholder="Type a message..."
-                      className="flex-1 px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-slate-600 bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white focus:border-purple-500 focus:outline-none"
-                    />
-                    <button type="button" className="p-2.5 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-xl transition-colors">
-                      <Mic className="w-5 h-5 text-gray-600 dark:text-gray-300" />
-                    </button>
-                    <button
-                      type="submit"
-                      className="p-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl hover:opacity-90 transition-opacity"
-                    >
-                      <Send className="w-5 h-5" />
-                    </button>
-                  </div>
-                </form>
-              </>
-            ) : activeTab === 'chats' && (
-              <div className="flex-1 flex items-center justify-center">
-                <div className="text-center">
-                  <div className="inline-flex p-6 bg-gray-100 dark:bg-slate-700 rounded-full mb-4">
-                    <MessageCircle className="w-12 h-12 text-gray-400" />
-                  </div>
-                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-                    Your Messages
-                  </h3>
-                  <p className="text-gray-500 dark:text-gray-400">
-                    Select a conversation to start chatting
-                  </p>
-                </div>
-              </div>
-            )}
+              )}
           </div>
         </div>
       </div>
     </div>
+  )
+}
+
+export default function MessagesPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-slate-950">
+          <Loader2 className="w-10 h-10 animate-spin text-purple-500" />
+        </div>
+      }
+    >
+      <MessagesContent />
+    </Suspense>
   )
 }

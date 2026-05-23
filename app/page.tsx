@@ -3,6 +3,7 @@
 
 'use client'
 
+import { Footer } from '@/components/layout/Footer'
 import React from 'react'
 import Link from 'next/link'
 import { 
@@ -143,16 +144,22 @@ export default function HomePage() {
           </p>
 
           {/* CTA Buttons */}
-          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
+                    {/* CTA Buttons */}
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-16">
             <Link href="/signup?role=student">
-              <button className="px-8 py-4 bg-white text-purple-600 font-semibold rounded-full hover:bg-gray-100 transition-all hover:scale-105 flex items-center justify-center gap-2">
+              <button className="w-64 sm:w-auto px-8 py-4 bg-white text-purple-600 font-semibold rounded-full hover:bg-gray-100 transition-all hover:scale-105 flex items-center justify-center gap-2">
                 Join as Student
                 <ArrowRight className="w-5 h-5" />
               </button>
             </Link>
             <Link href="/signup?role=alumni">
-              <button className="px-8 py-4 border-2 border-white text-white font-semibold rounded-full hover:bg-white/10 transition-all">
+              <button className="w-64 sm:w-auto px-8 py-4 border-2 border-white text-white font-semibold rounded-full hover:bg-white/10 transition-all flex items-center justify-center">
                 Join as Alumni
+              </button>
+            </Link>
+            <Link href="/signup?role=faculty">
+              <button className="w-64 sm:w-auto px-8 py-4 border-2 border-white text-white font-semibold rounded-full hover:bg-white/10 transition-all flex items-center justify-center">
+                Join as Faculty
               </button>
             </Link>
           </div>
@@ -403,14 +410,14 @@ export default function HomePage() {
           <p className="text-xl opacity-90 mb-8">
             Join thousands of students and alumni building meaningful connections.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                    <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
             <Link href="/signup">
-              <button className="px-8 py-4 bg-white text-purple-600 font-semibold rounded-full hover:bg-gray-100 transition-all hover:scale-105">
+              <button className="w-64 sm:w-auto px-8 py-4 bg-white text-purple-600 font-semibold rounded-full hover:bg-gray-100 transition-all hover:scale-105">
                 Get Started Free
               </button>
             </Link>
             <Link href="/explore">
-              <button className="px-8 py-4 border-2 border-white text-white font-semibold rounded-full hover:bg-white/10 transition-all">
+              <button className="w-64 sm:w-auto px-8 py-4 border-2 border-white text-white font-semibold rounded-full hover:bg-white/10 transition-all">
                 Explore Alumni
               </button>
             </Link>
@@ -420,3 +427,4 @@ export default function HomePage() {
     </div>
   )
 }
+<Footer />

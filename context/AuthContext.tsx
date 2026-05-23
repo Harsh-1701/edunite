@@ -1,18 +1,30 @@
 // context/AuthContext.tsx
-// Manages user login state across the entire app
 
 'use client'
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+} from 'react'
 import { useRouter } from 'next/navigation'
 
 interface User {
   _id: string
   name: string
   email: string
-  role: 'student' | 'alumni' | 'admin'
+  role: 'student' | 'alumni' | 'faculty' | 'admin'
   avatar?: string
   isVerified?: boolean
+  branch?: string
+  company?: string
+  jobTitle?: string
+  location?: string
+  bio?: string
+  linkedIn?: string
+  skills?: string[]
 }
 
 interface AuthContextType {
@@ -24,14 +36,7 @@ interface AuthContextType {
   refreshUser: () => Promise<void>
 }
 
-const AuthContext = createContext<AuthContextType>({
-  user: null,
-  loading: true,
-  login: async () => {},
-  signup: async () => {},
-  logout: async () => {},
-  refreshUser: async () => {},
-})
+const AuthContext = createContext<AuthContextType | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
@@ -51,7 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         setUser(null)
       }
-    } catch (error) {
+    } catch {
       setUser(null)
     } finally {
       setLoading(false)
@@ -72,21 +77,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     setUser(data.user)
-    
+
+    // All roles go to /dashboard — admin can also access /admin
     if (data.user.role === 'admin') {
       router.push('/admin')
-    } else if (data.user.role === 'alumni') {
-      router.push('/dashboard/alumni')
     } else {
-      router.push('/dashboard/student')
+      router.push('/dashboard')
     }
   }
 
-  const signup = async (data: any) => {
+  const signup = async (signupData: any) => {
     const res = await fetch('/api/auth/signup', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
+      body: JSON.stringify(signupData),
     })
 
     const result = await res.json()
@@ -96,27 +100,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     setUser(result.user)
-    
-    if (result.user.role === 'alumni') {
-      router.push('/dashboard/alumni')
-    } else {
-      router.push('/dashboard/student')
-    }
+    router.push('/dashboard')
   }
 
   const logout = async () => {
-    await fetch('/api/auth/logout', { method: 'POST' })
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' })
+    } catch {
+      // Even if the API call fails, still clear local state
+    }
     setUser(null)
     router.push('/')
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, signup, logout, refreshUser }}>
+    <AuthContext.Provider
+      value={{ user, loading, login, signup, logout, refreshUser }}
+    >
       {children}
     </AuthContext.Provider>
   )
 }
 
 export function useAuth() {
-  return useContext(AuthContext)
+  const context = useContext(AuthContext)
+  if (!context) {
+    throw new Error('useAuth must be used within AuthProvider')
+  }
+  return context
 }

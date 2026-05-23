@@ -9,7 +9,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-key'
 export interface TokenPayload {
   userId: string
   email: string
-  role: 'student' | 'alumni' | 'admin' | 'faculty'
+  role: 'student' | 'alumni' | 'faculty' | 'admin'
 }
 
 export async function hashPassword(password: string): Promise<string> {
