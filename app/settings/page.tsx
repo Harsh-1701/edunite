@@ -4,7 +4,7 @@
 
 import React, { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { useAuth } from '@/context/AuthContext'
+import { useAuth } from '@/components/providers/AuthProvider'
 import {
   User, Mail, Building, MapPin, Briefcase, Save, ArrowLeft,
   Camera, Trash2, X, Github, MessageSquare
@@ -57,7 +57,7 @@ export default function SettingsPage() {
   useEffect(() => {
     if (user) {
       setFormData({
-        name: user.name || '',
+        name: user.user_metadata?.name || '',
         email: user.email || '',
         bio: (user as any).bio || '',
         company: (user as any).company || '',
@@ -224,10 +224,14 @@ export default function SettingsPage() {
           <div className="flex items-center gap-6 mb-6 pb-6 border-b border-gray-200 dark:border-slate-700">
             <div className="relative group">
               {avatarPreview ? (
-                <img src={avatarPreview} alt={user.name} className="w-24 h-24 rounded-full object-cover ring-4 ring-purple-100 dark:ring-purple-900/30" />
+                <img src={avatarPreview} alt={user.user_metadata?.name} className="w-24 h-24 rounded-full object-cover ring-4 ring-purple-100 dark:ring-purple-900/30" />
               ) : (
                 <div className="w-24 h-24 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-full flex items-center justify-center text-white text-2xl font-bold ring-4 ring-purple-100 dark:ring-purple-900/30">
-                  {user.name?.split(' ').map(n => n[0]).join('').toUpperCase()}
+                  {(user.user_metadata?.name || user.email || 'U')
+  .split(' ')
+  .map((n: string) => n[0])
+  .join('')
+  .toUpperCase()}
                 </div>
               )}
               <button type="button" onClick={handleAvatarClick}
@@ -243,9 +247,9 @@ export default function SettingsPage() {
               <input ref={fileInputRef} type="file" accept="image/*" onChange={handleAvatarChange} className="hidden" />
             </div>
             <div>
-              <h3 className="font-semibold text-gray-900 dark:text-white">{user.name}</h3>
+              <h3 className="font-semibold text-gray-900 dark:text-white">{user.user_metadata?.name}</h3>
               <p className="text-gray-500 dark:text-gray-400">{user.email}</p>
-              <span className="inline-block mt-2 px-3 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-600 text-sm rounded-full capitalize">{user.role}</span>
+              <span className="inline-block mt-2 px-3 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-600 text-sm rounded-full capitalize">{user.user_metadata?.role}</span>
               <p className="text-xs text-gray-400 mt-2">Click photo to change • Max 2MB</p>
             </div>
           </div>
@@ -298,7 +302,7 @@ export default function SettingsPage() {
             </div>
 
             {/* Company & Job Title */}
-            {(user.role === 'alumni' || user.role === 'faculty') && (
+            {(user.user_metadata?.role === 'alumni' || user.user_metadata?.role === 'faculty') && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Company / Organization</label>

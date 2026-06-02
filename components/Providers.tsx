@@ -4,7 +4,7 @@
 'use client'
 
 import React from 'react'
-import { AuthProvider } from '@/context/AuthContext'
+import { AuthProvider } from '@/components/providers/AuthProvider'
 import { ThemeProvider } from '@/context/ThemeContext'
 import { Toaster } from 'react-hot-toast'
 

@@ -1,64 +1,47 @@
-// app/api/auth/login/route.ts
-
 import { NextRequest, NextResponse } from 'next/server'
-import { connectDB } from '@/lib/db'
-import { User } from '@/lib/models'
-import { comparePassword, generateToken, setAuthCookie } from '@/lib/auth'
+import { createClient } from '@supabase/supabase-js'
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
 
 export async function POST(req: NextRequest) {
   try {
-    await connectDB()
+    const body = await req.json()
 
-    const { email, password } = await req.json()
+    const { email, password } = body
 
     if (!email || !password) {
       return NextResponse.json(
-        { error: 'Email and password are required' },
+        { error: 'Email and password required' },
         { status: 400 }
       )
     }
 
-    const user = await User.findOne({ email: email.toLowerCase() })
-    if (!user) {
+    const { data, error } =
+      await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
+
+    if (error) {
       return NextResponse.json(
-        { error: 'Invalid email or password' },
+        { error: error.message },
         { status: 401 }
       )
-    }
-
-    const isValid = await comparePassword(password, user.password)
-    if (!isValid) {
-      return NextResponse.json(
-        { error: 'Invalid email or password' },
-        { status: 401 }
-      )
-    }
-
-    const token = generateToken({
-      userId: user._id.toString(),
-      email: user.email,
-      role: user.role,
-    })
-
-    await setAuthCookie(token)
-
-    const userData = {
-      _id: user._id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      avatar: user.avatar,
-      isVerified: user.isVerified,
     }
 
     return NextResponse.json({
       message: 'Login successful',
-      user: userData,
+      user: data.user,
+      session: data.session,
     })
   } catch (error) {
-    console.error('Login error:', error)
+    console.error(error)
+
     return NextResponse.json(
-      { error: 'Something went wrong' },
+      { error: 'Internal server error' },
       { status: 500 }
     )
   }

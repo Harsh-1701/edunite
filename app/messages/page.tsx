@@ -2,6 +2,8 @@
 
 import React, { useState, useRef, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
+import ProtectedRoute from '@/components/auth/ProtectedRoute'
+import { useAuth } from '@/components/providers/AuthProvider'
 import {
   MessageCircle,
   Search,
@@ -22,8 +24,6 @@ import {
   Loader2,
   Sparkles,
 } from 'lucide-react'
-
-import { useAuth } from '@/context/AuthContext'
 import toast from 'react-hot-toast'
 
 const conversations = [
@@ -160,9 +160,9 @@ or
   const imageInputRef =
     useRef<HTMLInputElement>(null)
 
-  const isAlumniOrFaculty =
-    user?.role === 'alumni' ||
-    user?.role === 'faculty'
+ const isAlumniOrFaculty =
+  user?.user_metadata?.role === 'alumni' ||
+  user?.user_metadata?.role === 'faculty'
 
   useEffect(() => {
     aiChatEndRef.current?.scrollIntoView({
@@ -355,6 +355,7 @@ or
   }
 
   return (
+    <ProtectedRoute>
     <div className="fixed inset-0 overflow-hidden bg-slate-950 pt-20">
       <div className="h-[calc(100vh-80px)] max-w-7xl mx-auto px-4 pb-4 overflow-hidden">
         <div className="h-full rounded-3xl overflow-hidden border border-white/10 bg-slate-900 shadow-2xl flex">
@@ -941,19 +942,22 @@ or
         </div>
       </div>
     </div>
+    </ProtectedRoute>
   )
 }
 
 export default function MessagesPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen flex items-center justify-center bg-slate-950">
-          <Loader2 className="w-10 h-10 animate-spin text-purple-500" />
-        </div>
-      }
-    >
-      <MessagesContent />
-    </Suspense>
+    <ProtectedRoute>
+      <Suspense
+        fallback={
+          <div className="min-h-screen flex items-center justify-center bg-slate-950">
+            <Loader2 className="w-10 h-10 animate-spin text-purple-500" />
+          </div>
+        }
+      >
+        <MessagesContent />
+      </Suspense>
+    </ProtectedRoute>
   )
 }
