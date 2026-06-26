@@ -47,6 +47,7 @@ export default function AlumniMap() {
     <div className="w-full h-[500px] rounded-[32px] overflow-hidden border border-white/10">
 
       <MapContainer
+        key="global-alumni-map"
         center={[20, 0]}
         zoom={2}
         scrollWheelZoom={true}

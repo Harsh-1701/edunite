@@ -259,6 +259,75 @@ export default function HomePage() {
         </div>
       </section>
 
+            {/* AI ASSISTANT SECTION */}
+      <section className="py-24 px-6">
+        <div className="max-w-6xl mx-auto">
+
+          <div className="text-center mb-12">
+            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-300 text-sm mb-4">
+              🤖 EduNite AI
+            </span>
+
+            <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
+              Your Personal Career Assistant
+            </h2>
+
+            <p className="text-slate-400 text-lg max-w-3xl mx-auto">
+              Get resume reviews, interview preparation, career guidance,
+              internship roadmaps and personalized suggestions instantly.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-8">
+
+            <div className="bg-white/[0.04] border border-white/10 rounded-3xl p-8">
+              <h3 className="text-xl font-semibold text-white mb-6">
+                Try asking:
+              </h3>
+
+              <div className="space-y-3">
+
+                <div className="p-4 rounded-2xl bg-white/5 text-slate-300">
+                  Build my ECE resume
+                </div>
+
+                <div className="p-4 rounded-2xl bg-white/5 text-slate-300">
+                  Prepare me for technical interviews
+                </div>
+
+                <div className="p-4 rounded-2xl bg-white/5 text-slate-300">
+                  Suggest skills for VLSI jobs
+                </div>
+
+                <div className="p-4 rounded-2xl bg-white/5 text-slate-300">
+                  Review my resume
+                </div>
+
+              </div>
+            </div>
+
+            <div className="bg-gradient-to-br from-purple-600/20 to-indigo-600/20 border border-white/10 rounded-3xl p-8 flex flex-col justify-center">
+
+              <h3 className="text-2xl font-bold text-white mb-4">
+                Start Using EduNite AI
+              </h3>
+
+              <p className="text-slate-300 mb-8">
+                Get instant career guidance powered by AI.
+              </p>
+
+              <Link href="/messages?tab=ai-assistant">
+                <button className="w-full py-4 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-semibold hover:scale-[1.02] transition-all">
+                  Open AI Assistant
+                </button>
+              </Link>
+
+            </div>
+
+          </div>
+        </div>
+      </section>
+
       {/* FEATURES */}
       <section className="py-24 px-6">
 

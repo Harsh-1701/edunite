@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import Link from 'next/link'
+import { supabase } from '@/lib/supabase'
 
 // Indian cities for autocomplete
 const CITIES = [
@@ -29,7 +30,7 @@ const CITIES = [
 ]
 
 export default function SettingsPage() {
-  const { user, loading, refreshUser } = useAuth()
+  const { user, loading } = useAuth()
   const router = useRouter()
   const [saving, setSaving] = useState(false)
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
@@ -141,52 +142,60 @@ export default function SettingsPage() {
   }
 
   const handleEmailChange = async () => {
-    if (!newEmail || !emailPassword) {
-      toast.error('Please fill in both fields')
+    if (!newEmail) {
+      toast.error('Please enter a new email address')
       return
     }
+
     try {
-      const res = await fetch('/api/user/change-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ newEmail, password: emailPassword }),
+      const { error } = await supabase.auth.updateUser({
+        email: newEmail,
       })
-      const data = await res.json()
-      if (res.ok) {
-        toast.success('Email updated successfully! Please login again.')
-        setShowEmailChange(false)
-        setNewEmail('')
-        setEmailPassword('')
-        await refreshUser()
-      } else {
-        toast.error(data.error || 'Failed to update email')
-      }
-    } catch {
-      toast.error('Something went wrong')
+
+      if (error) throw error
+
+      toast.success(
+        'Verification email sent. Please verify your new email address.'
+      )
+
+      setShowEmailChange(false)
+      setNewEmail('')
+      setEmailPassword('')
+    } catch (error: any) {
+      toast.error(error.message)
     }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)
+
     try {
-      const res = await fetch('/api/user', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...formData,
+      const { error } = await supabase.auth.updateUser({
+        data: {
+          name: formData.name,
+          bio: formData.bio,
+          company: formData.company,
+          jobTitle: formData.jobTitle,
+          location: formData.location,
+          linkedIn: formData.linkedIn,
+          github: formData.github,
+          discord: formData.discord,
+          skills: formData.skills
+            .split(',')
+            .map((skill) => skill.trim())
+            .filter(Boolean),
           avatar: avatarPreview || '',
-        }),
+        },
       })
-      if (res.ok) {
-        toast.success('Profile updated successfully!')
-        await refreshUser()
-      } else {
-        const data = await res.json()
-        toast.error(data.error || 'Failed to update profile')
-      }
-    } catch {
-      toast.error('Something went wrong')
+
+      if (error) throw error
+
+      toast.success('Profile updated successfully!')
+
+      window.location.reload()
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to update profile')
     } finally {
       setSaving(false)
     }

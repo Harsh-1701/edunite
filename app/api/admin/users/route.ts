@@ -3,7 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/db'
 import { User } from '@/lib/models'
-import { hashPassword } from '@/lib/auth'
+import { hashPassword } from '@/lib/password'
 
 export async function GET() {
   try {

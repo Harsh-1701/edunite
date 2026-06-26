@@ -10,6 +10,7 @@ import {
   Briefcase, Shield, ChevronRight, Check, Eye, EyeOff
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { supabase } from '@/lib/supabase'
 
 type RoleType = 'student' | 'alumni' | 'faculty'
 type AlumniProfession = 'employee' | 'employer' | 'freelancer' | 'government' | 'entrepreneur' | 'other'
@@ -92,37 +93,40 @@ function SignupContent() {
 
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault()
+
     setLoading(true)
 
     try {
-      const res = await fetch('/api/auth/signup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: formData.name,
-          email: formData.email,
-          password: formData.password,
-          role: formData.role,
-          branch: formData.branch,
-          collegeId: formData.usn,
-          graduationYear: formData.role === 'student' ? formData.graduationYear : formData.yearOfGraduation,
-          profession: formData.profession,
-          company: formData.companyName,
-          jobTitle: formData.jobTitle,
-          designation: formData.designation,
-          yearsOfExperience: formData.yearsOfExperience,
-          specialization: formData.specialization,
-          otherProfession: formData.otherProfession,
-        }),
+      const { data, error } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          data: {
+            name: formData.name,
+            role: formData.role,
+            branch: formData.branch,
+            collegeId: formData.usn,
+            graduationYear:
+              formData.role === 'student'
+                ? formData.graduationYear
+                : formData.yearOfGraduation,
+            profession: formData.profession,
+            company: formData.companyName,
+            jobTitle: formData.jobTitle,
+            designation: formData.designation,
+            yearsOfExperience: formData.yearsOfExperience,
+            specialization: formData.specialization,
+            otherProfession: formData.otherProfession,
+          },
+        },
       })
 
-      const data = await res.json()
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Signup failed')
+      if (error) {
+        throw error
       }
 
       toast.success('Account created successfully!')
+
       router.push('/dashboard')
     } catch (error: any) {
       toast.error(error.message || 'Signup failed')

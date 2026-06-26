@@ -2,7 +2,6 @@
 
 import React, { useState, useRef, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
-import ProtectedRoute from '@/components/auth/ProtectedRoute'
 import { useAuth } from '@/components/providers/AuthProvider'
 import {
   MessageCircle,
@@ -25,6 +24,14 @@ import {
   Sparkles,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import dynamic from 'next/dynamic'
+
+const AlumniMap = dynamic(
+  () => import('@/components/home/AlumniMap'),
+  {
+    ssr: false,
+  }
+)
 
 const conversations = [
   {
@@ -107,7 +114,7 @@ type AiMessage = {
 
 function MessagesContent() {
   const searchParams = useSearchParams()
-  const { user } = useAuth()
+  const { user, loading } = useAuth()
 
   const defaultTab =
     (searchParams.get('tab') as TabType) || 'chats'
@@ -169,6 +176,12 @@ or
       behavior: 'smooth',
     })
   }, [aiMessages])
+
+  useEffect(() => {
+    if (!loading && !user) {
+      window.location.href = '/login'
+    }
+  }, [loading, user])
 
   const handleSendMessage = (
     e: React.FormEvent
@@ -355,7 +368,6 @@ or
   }
 
   return (
-    <ProtectedRoute>
     <div className="fixed inset-0 overflow-hidden bg-slate-950 pt-20">
       <div className="h-[calc(100vh-80px)] max-w-7xl mx-auto px-4 pb-4 overflow-hidden">
         <div className="h-full rounded-3xl overflow-hidden border border-white/10 bg-slate-900 shadow-2xl flex">
@@ -942,7 +954,6 @@ or
         </div>
       </div>
     </div>
-    </ProtectedRoute>
   )
 }
 

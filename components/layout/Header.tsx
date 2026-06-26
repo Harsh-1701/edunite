@@ -96,12 +96,13 @@ export function Header() {
     setIsUserMenuOpen(false)
   }, [pathname])
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut()
+const handleLogout = async () => {
+  const { error } = await supabase.auth.signOut()
 
+  if (!error) {
     window.location.href = '/'
   }
-
+}
   const userName =
     user?.user_metadata?.name ||
     user?.email ||
@@ -166,15 +167,11 @@ export function Header() {
           <div className="flex items-center gap-2">
 
             {/* MESSAGES ONLY AFTER LOGIN */}
-            {user && (
+            {user && pathname !== '/' && (
               <Link href="/messages">
-
                 <button className="relative p-2.5 rounded-xl text-slate-300 hover:bg-white/5 transition-colors">
-
                   <MessageCircle className="w-5 h-5" />
-
                 </button>
-
               </Link>
             )}
 
@@ -192,12 +189,6 @@ export function Header() {
 
             {user ? (
               <>
-                {/* NOTIFICATIONS */}
-                <button className="relative p-2.5 rounded-xl text-slate-300 hover:bg-white/5 transition-colors">
-
-                  <Bell className="w-5 h-5" />
-
-                </button>
 
                 {/* USER MENU */}
                 <div className="relative">
@@ -236,34 +227,34 @@ export function Header() {
 
                       <div className="p-2">
 
-  <Link
-    href="/dashboard"
-    className="flex items-center gap-3 px-3 py-2 text-slate-300 hover:bg-white/5 rounded-xl transition-colors"
-  >
-    <User className="w-4 h-4" />
+                      <Link
+                        href="/dashboard"
+                        className="flex items-center gap-3 px-3 py-2 text-slate-300 hover:bg-white/5 rounded-xl transition-colors"
+                      >
+                        <User className="w-4 h-4" />
 
-    Dashboard
-  </Link>
+                        Dashboard
+                      </Link>
 
-  <Link
-    href="/settings"
-    className="flex items-center gap-3 px-3 py-2 text-slate-300 hover:bg-white/5 rounded-xl transition-colors"
-  >
-    <Settings className="w-4 h-4" />
+                      <Link
+                        href="/settings"
+                        className="flex items-center gap-3 px-3 py-2 text-slate-300 hover:bg-white/5 rounded-xl transition-colors"
+                      >
+                        <Settings className="w-4 h-4" />
 
-    Settings
-  </Link>
+                        Settings
+                      </Link>
 
-  <button
-    onClick={handleLogout}
-    className="flex items-center gap-3 px-3 py-2 w-full text-left text-red-400 hover:bg-red-500/10 rounded-xl transition-colors"
-  >
-    <LogOut className="w-4 h-4" />
+                      <button
+                        onClick={handleLogout}
+                        className="flex items-center gap-3 px-3 py-2 w-full text-left text-red-400 hover:bg-red-500/10 rounded-xl transition-colors"
+                      >
+                        <LogOut className="w-4 h-4" />
 
-    Logout
-  </button>
+                        Logout
+                      </button>
 
-</div>
+                    </div>
                     </div>
                   )}
                 </div>

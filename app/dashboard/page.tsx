@@ -8,7 +8,6 @@ import React, {
 import Link from 'next/link'
 
 import { useRouter } from 'next/navigation'
-import ProtectedRoute from '@/components/auth/ProtectedRoute'
 
 import {
   Users,
@@ -26,7 +25,6 @@ import {
 } from 'lucide-react'
 
 import { useAuth } from '@/components/providers/AuthProvider'
-
 import { supabase } from '@/lib/supabase'
 
 export default function DashboardPage() {
@@ -80,35 +78,31 @@ export default function DashboardPage() {
     'student'
 
   const userStats = [
-    {
-      label: 'Mentorship Sessions',
-      value: '0',
-      icon: Users,
-      color:
-        'from-purple-500 to-indigo-500',
-    },
-    {
-      label: 'Messages',
-      value: '0',
-      icon: MessageCircle,
-      color:
-        'from-blue-500 to-cyan-500',
-    },
-    {
-      label: 'Connections',
-      value: '0',
-      icon: TrendingUp,
-      color:
-        'from-green-500 to-emerald-500',
-    },
-    {
-      label: 'Achievements',
-      value: '1',
-      icon: Award,
-      color:
-        'from-orange-500 to-yellow-500',
-    },
-  ]
+  {
+    label: 'Profile Completion',
+    value: '65%',
+    icon: Users,
+    color: 'from-purple-500 to-indigo-500',
+  },
+  {
+    label: 'Resume Score',
+    value: '78',
+    icon: Award,
+    color: 'from-blue-500 to-cyan-500',
+  },
+  {
+    label: 'Mentors Available',
+    value: '143',
+    icon: MessageCircle,
+    color: 'from-green-500 to-emerald-500',
+  },
+  {
+    label: 'Achievements',
+    value: '1',
+    icon: TrendingUp,
+    color: 'from-orange-500 to-yellow-500',
+  },
+]
 
   const quickActions = [
     {
@@ -142,14 +136,9 @@ export default function DashboardPage() {
 
     {
       label: 'AI Assistant',
-
-      href:
-        '/messages?tab=ai-assistant',
-
+      href: '/ai-assistant',
       icon: Bot,
-
-      description:
-        'Get career guidance',
+      description: 'Resume reviews, interview prep and career guidance',
     },
 
     {
@@ -198,7 +187,6 @@ export default function DashboardPage() {
   ]
 
   return (
-    <ProtectedRoute>
     <div className="min-h-screen bg-[#081120] pt-28 pb-12 px-4">
 
       <div className="max-w-7xl mx-auto">
@@ -274,6 +262,59 @@ export default function DashboardPage() {
             </div>
           ))}
         </div>
+
+        {/* AI RECOMMENDATIONS */}
+          <div className="bg-white/[0.04] border border-white/10 rounded-3xl p-6 mb-8">
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 flex items-center justify-center">
+                🤖
+              </div>
+
+              <div>
+                <h2 className="text-xl font-semibold text-white">
+                  AI Career Recommendations
+                </h2>
+
+                <p className="text-slate-400 text-sm">
+                  Personalized suggestions for you
+                </p>
+              </div>
+            </div>
+
+            <div className="grid md:grid-cols-3 gap-4">
+
+              <div className="bg-white/5 rounded-2xl p-4">
+                <h3 className="font-medium text-white mb-2">
+                  Improve LinkedIn
+                </h3>
+
+                <p className="text-slate-400 text-sm">
+                  Add projects and achievements to increase visibility.
+                </p>
+              </div>
+
+              <div className="bg-white/5 rounded-2xl p-4">
+                <h3 className="font-medium text-white mb-2">
+                  Learn Python
+                </h3>
+
+                <p className="text-slate-400 text-sm">
+                  Frequently requested skill for internships.
+                </p>
+              </div>
+
+              <div className="bg-white/5 rounded-2xl p-4">
+                <h3 className="font-medium text-white mb-2">
+                  Connect with Alumni
+                </h3>
+
+                <p className="text-slate-400 text-sm">
+                  Reach out to alumni working in industry.
+                </p>
+              </div>
+
+            </div>
+          </div>
 
         {/* QUICK ACTIONS */}
         <div className="grid lg:grid-cols-3 gap-8">
@@ -379,6 +420,6 @@ export default function DashboardPage() {
         </div>
       </div>
     </div>
-    </ProtectedRoute>
   )
 }
+
