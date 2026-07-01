@@ -121,6 +121,46 @@ function SignupContent() {
         },
       })
 
+      const user = data.user
+
+if (user) {
+  const { error: profileError } = await supabase
+    .from('profiles')
+    .insert({
+      id: user.id,
+      email: user.email,
+
+      name: formData.name,
+      role: formData.role,
+      branch: formData.branch,
+
+      graduation_year:
+        formData.role === 'student'
+          ? formData.graduationYear
+          : formData.yearOfGraduation,
+
+      profession:
+        formData.profession === 'other'
+          ? formData.otherProfession
+          : formData.profession,
+
+      company: formData.companyName,
+      job_title: formData.jobTitle,
+
+      designation: formData.designation,
+      years_of_experience: formData.yearsOfExperience,
+      specialization: formData.specialization,
+
+      bio: '',
+      location: '',
+      verified: false,
+    })
+
+  if (profileError) {
+    console.error(profileError)
+  }
+}
+
       if (error) {
         throw error
       }

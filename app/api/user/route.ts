@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
+import { hashPassword } from '@/lib/password'
 
 export async function GET() {
   try {
@@ -27,9 +28,13 @@ export async function GET() {
   }
 }
 
-export async function POST(req: NextRequest) {
+export async function POST(req: Request) {
   try {
     const body = await req.json()
+
+    const password = await hashPassword(
+      body.password
+    )
 
     const { data: authUser, error: authError } =
       await supabaseAdmin.auth.admin.createUser({

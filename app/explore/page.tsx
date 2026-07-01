@@ -1,37 +1,96 @@
 // app/explore/page.tsx
 // Explore Alumni Page
-
 'use client'
+import React, { useEffect, useState } from 'react'
+import { supabase } from '@/lib/supabase'
+import { useRouter } from 'next/navigation'
 
-import React, { useState } from 'react'
-import { Search, Filter, MapPin, Building, GraduationCap, Briefcase } from 'lucide-react'
 
-const dummyAlumni = [
-  { id: 1, name: 'Rahul Kumar', branch: 'CSE', year: 2020, company: 'Google', role: 'Software Engineer', location: 'Bangalore', domain: 'Software' },
-  { id: 2, name: 'Priya Sharma', branch: 'ECE', year: 2019, company: 'Microsoft', role: 'Product Manager', location: 'Hyderabad', domain: 'Software' },
-  { id: 3, name: 'Amit Patel', branch: 'ME', year: 2018, company: 'Tesla', role: 'Mechanical Engineer', location: 'USA', domain: 'Core Engineering' },
-  { id: 4, name: 'Sneha Reddy', branch: 'CSE', year: 2021, company: 'Amazon', role: 'SDE', location: 'Bangalore', domain: 'Software' },
-  { id: 5, name: 'Vikram Singh', branch: 'EE', year: 2017, company: 'ISRO', role: 'Scientist', location: 'Delhi', domain: 'Government' },
-  { id: 6, name: 'Ananya Gupta', branch: 'CE', year: 2020, company: 'L&T', role: 'Civil Engineer', location: 'Mumbai', domain: 'Core Engineering' },
-  { id: 7, name: 'Karthik Nair', branch: 'IT', year: 2019, company: 'Goldman Sachs', role: 'Analyst', location: 'Bangalore', domain: 'Finance' },
-  { id: 8, name: 'Meera Joshi', branch: 'CSE', year: 2022, company: 'Startup', role: 'Founder', location: 'Pune', domain: 'Entrepreneurship' },
-]
+import { Search, MapPin, Building, GraduationCap, Briefcase } from 'lucide-react'
 
 const branches = ['All', 'CSE', 'ECE', 'ME', 'EE', 'CE', 'IT']
 const domains = ['All', 'Software', 'Core Engineering', 'Finance', 'Government', 'Entrepreneurship']
 
 export default function ExplorePage() {
+  const router = useRouter()
   const [search, setSearch] = useState('')
   const [selectedBranch, setSelectedBranch] = useState('All')
   const [selectedDomain, setSelectedDomain] = useState('All')
+  const [alumni, setAlumni] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [currentUser, setCurrentUser] = useState<any>(null)
 
-  const filteredAlumni = dummyAlumni.filter(alumni => {
-    const matchesSearch = alumni.name.toLowerCase().includes(search.toLowerCase()) ||
-                         alumni.company.toLowerCase().includes(search.toLowerCase())
+  useEffect(() => {
+    const loadAlumni = async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('role', 'alumni')
+        .order('name')
+
+      if (!error && data) {
+        setAlumni(data)
+      }
+
+      setLoading(false)
+    }
+
+    loadAlumni()
+    supabase.auth.getUser().then(({ data }) => {
+      setCurrentUser(data.user)
+    })
+  }, [])
+
+  const filteredAlumni = alumni.filter(alumni => {
+    const matchesSearch =
+      (alumni.name ?? '').toLowerCase().includes(search.toLowerCase()) ||
+      (alumni.company ?? '').toLowerCase().includes(search.toLowerCase())
     const matchesBranch = selectedBranch === 'All' || alumni.branch === selectedBranch
-    const matchesDomain = selectedDomain === 'All' || alumni.domain === selectedDomain
+    const matchesDomain = selectedDomain === 'All' || (alumni.profession ?? '') === selectedDomain
     return matchesSearch && matchesBranch && matchesDomain
   })
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#081120]">
+        <div className="animate-spin w-10 h-10 border-4 border-purple-600 border-t-transparent rounded-full" />
+      </div>
+    )
+  }
+
+  const connectWithAlumni = async (alumni: any) => {
+  if (!currentUser) return
+
+  // Don't create duplicate conversations
+  const { data: existing } = await supabase
+    .from('conversations')
+    .select('*')
+    .or(
+      `and(user_one.eq.${currentUser.id},user_two.eq.${alumni.id}),and(user_one.eq.${alumni.id},user_two.eq.${currentUser.id})`
+    )
+    .single()
+
+  if (existing) {
+    router.push('/messages')
+    return
+  }
+
+  const { data, error } = await supabase
+    .from('conversations')
+    .insert({
+      user_one: currentUser.id,
+      user_two: alumni.id,
+    })
+    .select()
+    .single()
+
+  if (error) {
+    console.error(error)
+    return
+  }
+
+  router.push('/messages')
+}
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pt-24 pb-12 px-4">
@@ -87,6 +146,8 @@ export default function ExplorePage() {
           </div>
         </div>
 
+
+
         {/* Results */}
         <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {filteredAlumni.map((alumni) => (
@@ -94,7 +155,7 @@ export default function ExplorePage() {
               
               {/* Avatar */}
               <div className="w-16 h-16 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-full flex items-center justify-center text-white text-xl font-bold mb-4">
-                {alumni.name.split(' ').map(n => n[0]).join('')}
+                {alumni.name?.charAt(0) || '?'}
               </div>
 
               {/* Info */}
@@ -107,7 +168,7 @@ export default function ExplorePage() {
               
               <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400 mt-1">
                 <Briefcase className="w-4 h-4" />
-                <span>{alumni.role}</span>
+                <span>{alumni.job_title}</span>
               </div>
               
               <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400 mt-1">
@@ -117,11 +178,13 @@ export default function ExplorePage() {
 
               <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400 mt-1">
                 <GraduationCap className="w-4 h-4" />
-                <span>{alumni.branch} • {alumni.year}</span>
+                <span>{alumni.branch} • {alumni.graduation_year}</span>
               </div>
 
               {/* Connect Button */}
-              <button className="w-full mt-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-medium rounded-xl hover:opacity-90 transition-opacity">
+              <button
+                onClick={() => connectWithAlumni(alumni)}
+                className="w-full mt-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-medium rounded-xl hover:opacity-90 transition-opacity">
                 Connect
               </button>
             </div>

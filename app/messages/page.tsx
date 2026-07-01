@@ -1,5 +1,23 @@
 'use client'
 
+import AIChat from '@/components/messages/AIChat'
+import ChatWindow from '@/components/messages/ChatWindow'
+import ConversationList from '@/components/messages/ConversationList'
+import AnnouncementFeed from '@/components/messages/AnnouncementFeed'
+import { supabase } from '@/lib/supabase'
+import { getConversations } from '../../lib/services/conversations'
+
+import {
+  loadMessages,
+  sendMessage,
+  subscribeMessages,
+  unsubscribeMessages,
+} from '@/lib/services/messages'
+import {
+  Conversation,
+  Message,
+  Announcement,
+} from '@/components/messages/types'
 import React, { useState, useRef, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useAuth } from '@/components/providers/AuthProvider'
@@ -33,40 +51,7 @@ const AlumniMap = dynamic(
   }
 )
 
-const conversations = [
-  {
-    id: 1,
-    name: 'Rahul Kumar',
-    role: 'alumni',
-    lastMessage: 'Sure, I can help you with the interview prep!',
-    time: '2m ago',
-    unread: 2,
-    online: true,
-    company: 'Google',
-  },
-  {
-    id: 2,
-    name: 'Dr. Priya Sharma',
-    role: 'faculty',
-    lastMessage: 'The project deadline has been extended.',
-    time: '1h ago',
-    unread: 0,
-    online: true,
-    company: null,
-  },
-  {
-    id: 3,
-    name: 'Amit Patel',
-    role: 'alumni',
-    lastMessage: 'Check out this job opening at Microsoft!',
-    time: '3h ago',
-    unread: 1,
-    online: false,
-    company: 'Microsoft',
-  },
-]
-
-const announcements = [
+const announcements: Announcement[] = [
   {
     id: 1,
     author: 'Sneha Reddy',
@@ -89,7 +74,7 @@ const announcements = [
   },
 ]
 
-const dummyMessages = [
+const dummyMessages: Message[] = [
   {
     id: 1,
     sender: 'other',
@@ -116,17 +101,17 @@ function MessagesContent() {
   const searchParams = useSearchParams()
   const { user, loading } = useAuth()
 
-  const defaultTab =
-    (searchParams.get('tab') as TabType) || 'chats'
+  const defaultTab = (searchParams.get('tab') as TabType) || 'chats'
 
-  const [activeTab, setActiveTab] =
-    useState<TabType>(defaultTab)
+  const [activeTab, setActiveTab] = useState<TabType>(defaultTab)
 
-  const [selectedChat, setSelectedChat] =
-    useState<number | null>(null)
+  const [selectedChat, setSelectedChat] = useState<string | null>(null)
 
   const [message, setMessage] = useState('')
   const [feedPost, setFeedPost] = useState('')
+
+  const [conversations, setConversations] = useState<any[]>([])
+  const [messages, setMessages] = useState<any[]>([])
 
   // AI STATES
   const [aiMessage, setAiMessage] = useState('')
@@ -137,22 +122,22 @@ function MessagesContent() {
       content:
         `👋 Welcome to EduNite AI
 
-I can help you with:
+          I can help you with:
 
-• Resume building
-• Interview preparation
-• Career guidance
-• Internship roadmap
-• Research opportunities
-• LinkedIn improvements
-• Skill recommendations
+          • Resume building
+          • Interview preparation
+          • Career guidance
+          • Internship roadmap
+          • Research opportunities
+          • LinkedIn improvements
+          • Skill recommendations
 
-Try asking:
-"Build my resume"
-or
-"Help me prepare for interviews"`
-    },
-  ])
+          Try asking:
+          "Build my resume"
+          or
+          "Help me prepare for interviews"`
+              },
+            ])
 
   const [aiLoading, setAiLoading] = useState(false)
 
@@ -182,6 +167,23 @@ or
       window.location.href = '/login'
     }
   }, [loading, user])
+
+  useEffect(() => {
+    if (!user) return
+
+    const loadConversations = async () => {
+      if (!user) return
+
+      try {
+        const data = await getConversations(user.id)
+        setConversations(data)
+      } catch (err) {
+        console.error(err)
+      }
+    }
+
+    loadConversations()
+  }, [user])
 
   const handleSendMessage = (
     e: React.FormEvent
@@ -345,7 +347,56 @@ or
   const selectedConversation =
     conversations.find(
       c => c.id === selectedChat
-    )
+    ) ?? null
+
+    useEffect(() => {
+      if (!selectedChat) return
+
+      let channel: any
+
+      const init = async () => {
+        try {
+          const data = await loadMessages(selectedChat)
+
+          console.log("Loaded messages:", data)
+
+          setMessages(data)
+
+          console.log("Subscribing to:", selectedChat)
+
+          channel = subscribeMessages(selectedChat, (message) => {
+            console.log("Received realtime message:", message)
+
+            setMessages((prev) => {
+              console.log("Previous messages:", prev.length)
+
+              const exists = prev.some((m) => m.id === message.id)
+
+              if (exists) {
+                console.log("Duplicate message")
+                return prev
+              }
+
+              const updated = [...prev, message]
+
+              console.log("Updated messages:", updated.length)
+
+              return updated
+            })
+          })
+        } catch (err) {
+          console.error(err)
+        }
+      }
+
+      init()
+
+      return () => {
+        if (channel) {
+          unsubscribeMessages(channel)
+        }
+      }
+    }, [selectedChat])
 
   const renderAiContent = (
     content: string
@@ -447,138 +498,19 @@ or
 
               {/* CHATS */}
               {activeTab === 'chats' && (
-                <div className="space-y-2">
-                  {conversations.map(conv => (
-                    <button
-                      key={conv.id}
-                      onClick={() =>
-                        setSelectedChat(conv.id)
-                      }
-                      className={`w-full p-4 rounded-2xl transition-all text-left ${
-                        selectedChat === conv.id
-                          ? 'bg-purple-600/20 border border-purple-500/30'
-                          : 'bg-white/5 hover:bg-white/10 border border-transparent'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="relative">
-                          <div className="w-12 h-12 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 flex items-center justify-center text-white font-semibold">
-                            {conv.name
-                              .split(' ')
-                              .map(n => n[0])
-                              .join('')}
-                          </div>
-
-                          {conv.online && (
-                            <div className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-green-400 border-2 border-slate-900" />
-                          )}
-                        </div>
-
-                        <div className="flex-1 overflow-hidden">
-                          <div className="flex justify-between items-center">
-                            <h3 className="text-white font-medium truncate">
-                              {conv.name}
-                            </h3>
-
-                            <span className="text-xs text-slate-400">
-                              {conv.time}
-                            </span>
-                          </div>
-
-                          <p className="text-sm text-slate-400 truncate">
-                            {conv.lastMessage}
-                          </p>
-                        </div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
+                <ConversationList
+                  conversations={conversations}
+                  selectedChat={selectedChat}
+                  onSelect={setSelectedChat}
+                />
               )}
 
               {/* ANNOUNCEMENTS */}
-              {activeTab ===
-                'announcements' && (
-                <div className="space-y-4">
-
-                  {isAlumniOrFaculty && (
-                    <form
-                      onSubmit={
-                        handleFeedPost
-                      }
-                    >
-                      <div className="bg-white/5 border border-white/10 rounded-3xl p-4">
-                        <textarea
-                          value={feedPost}
-                          onChange={e =>
-                            setFeedPost(
-                              e.target.value
-                            )
-                          }
-                          rows={3}
-                          placeholder="Share something..."
-                          className="w-full bg-transparent text-white placeholder:text-slate-500 resize-none focus:outline-none"
-                        />
-
-                        <div className="flex justify-end mt-3">
-                          <button
-                            type="submit"
-                            className="px-5 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white"
-                          >
-                            Post
-                          </button>
-                        </div>
-                      </div>
-                    </form>
-                  )}
-
-                  {announcements.map(post => (
-                    <div
-                      key={post.id}
-                      className="bg-white/5 border border-white/10 rounded-3xl p-5"
-                    >
-                      <div className="flex gap-3">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 flex items-center justify-center text-white">
-                          {post.author
-                            .split(' ')
-                            .map(n => n[0])
-                            .join('')}
-                        </div>
-
-                        <div className="flex-1">
-                          <h3 className="text-white font-medium">
-                            {post.author}
-                          </h3>
-
-                          <p className="text-sm text-slate-300 mt-2">
-                            {post.content}
-                          </p>
-
-                          <div className="flex items-center gap-4 mt-4">
-                            <button className="flex items-center gap-1 text-slate-400 hover:text-blue-400">
-                              <ThumbsUp className="w-4 h-4" />
-                              <span className="text-xs">
-                                {
-                                  post.reactions
-                                    .likes
-                                }
-                              </span>
-                            </button>
-
-                            <button className="flex items-center gap-1 text-slate-400 hover:text-red-400">
-                              <Heart className="w-4 h-4" />
-                              <span className="text-xs">
-                                {
-                                  post.reactions
-                                    .hearts
-                                }
-                              </span>
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+              {activeTab === 'announcements' && (
+                <AnnouncementFeed
+                  announcements={announcements}
+                  canPost={isAlumniOrFaculty}
+                />
               )}
 
               {/* AI QUICK ACTIONS */}
@@ -607,329 +539,57 @@ or
           <div className="flex-1 flex flex-col overflow-hidden">
 
             {/* AI ASSISTANT */}
-            {activeTab ===
-              'ai-assistant' && (
-              <div className="flex flex-col h-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 overflow-hidden">
-
-                {/* HEADER */}
-<div className="flex items-center gap-4 px-4 md:px-6 py-5 border-b border-white/10 bg-white/5 backdrop-blur-xl">
-
-  {/* MOBILE BACK BUTTON */}
-  <button
-    onClick={() => {
-      setActiveTab('chats')
-      setSelectedChat(null)
-    }}
-    className="md:hidden p-2 rounded-xl bg-white/10 hover:bg-white/20 transition-all active:scale-95"
-  >
-    <ArrowLeft className="w-5 h-5 text-white" />
-  </button>
-
-  {/* AI ICON */}
-  <div className="p-3 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 shadow-lg shadow-purple-500/30">
-    <Bot className="w-6 h-6 text-white" />
-  </div>
-
-  {/* TITLE */}
-  <div className="flex-1 min-w-0">
-    <h2 className="text-white font-semibold text-lg truncate">
-      EduNite AI
-    </h2>
-
-    <p className="text-sm text-purple-300 truncate">
-      Career Mentor • Resume Builder
-    </p>
-  </div>
-
-  {/* ONLINE STATUS */}
-  <div className="hidden sm:flex items-center gap-2 px-3 py-1 rounded-full bg-green-500/10 border border-green-500/20">
-    <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-
-    <span className="text-xs text-green-300 font-medium">
-      Online
-    </span>
-  </div>
-</div>
-
-                {/* MESSAGES */}
-                <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6 min-h-0">
-                  {aiMessages.map(
-                    (msg, index) => (
-                      <div
-                        key={index}
-                        className={`flex ${
-                          msg.role ===
-                          'user'
-                            ? 'justify-end'
-                            : 'justify-start'
-                        }`}
-                      >
-                        <div
-                          className={`max-w-[80%] rounded-3xl px-5 py-4 shadow-xl ${
-                            msg.role ===
-                            'user'
-                              ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-br-md'
-                              : 'bg-white/10 border border-white/10 text-white rounded-bl-md backdrop-blur-xl'
-                          }`}
-                        >
-                          {msg.role ===
-                            'assistant' && (
-                            <div className="flex items-center gap-2 mb-3">
-                              <Sparkles className="w-4 h-4 text-purple-300" />
-
-                              <span className="text-xs uppercase tracking-wider text-purple-300 font-semibold">
-                                EduNite AI
-                              </span>
-                            </div>
-                          )}
-
-                          {msg.image && (
-                            <img
-                              src={msg.image}
-                              alt="Uploaded"
-                              className="rounded-2xl mb-4 max-h-72 object-contain"
-                            />
-                          )}
-
-                          <div className="text-sm leading-7">
-                            {msg.role ===
-                            'assistant'
-                              ? renderAiContent(
-                                  msg.content
-                                )
-                              : (
-                                <p className="whitespace-pre-wrap">
-                                  {
-                                    msg.content
-                                  }
-                                </p>
-                              )}
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  )}
-
-                  {aiLoading && (
-                    <div className="flex justify-start">
-                      <div className="bg-white/10 border border-white/10 rounded-3xl px-5 py-4 flex items-center gap-3 backdrop-blur-xl">
-                        <Loader2 className="w-5 h-5 animate-spin text-purple-300" />
-
-                        <span className="text-sm text-purple-200">
-                          EduNite AI is thinking...
-                        </span>
-                      </div>
-                    </div>
-                  )}
-
-                  <div ref={aiChatEndRef} />
-                </div>
-
-                {/* IMAGE PREVIEW */}
-                {imagePreview && (
-                  <div className="px-6 pb-3">
-                    <div className="relative inline-block">
-                      <img
-                        src={imagePreview}
-                        alt="Preview"
-                        className="h-24 rounded-2xl border border-white/10"
-                      />
-
-                      <button
-                        onClick={
-                          removeImage
-                        }
-                        className="absolute -top-2 -right-2 p-1.5 rounded-full bg-red-500 text-white"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* INPUT */}
-                <div className="p-5 border-t border-white/10 bg-slate-900/90 backdrop-blur-2xl">
-                  <form
-                    onSubmit={
-                      handleAiSend
-                    }
-                    className="flex items-center gap-3"
-                  >
-                    <input
-                      ref={
-                        imageInputRef
-                      }
-                      type="file"
-                      accept="image/*"
-                      onChange={
-                        handleImageSelect
-                      }
-                      className="hidden"
-                    />
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        imageInputRef.current?.click()
-                      }
-                      className="p-3 rounded-2xl bg-white/10 hover:bg-white/20 transition-all border border-white/10"
-                    >
-                      <ImageIcon className="w-5 h-5 text-purple-200" />
-                    </button>
-
-                    <input
-                      type="text"
-                      value={aiMessage}
-                      onChange={e =>
-                        setAiMessage(
-                          e.target.value
-                        )
-                      }
-                      placeholder="Ask about resumes, internships, interviews..."
-                      disabled={aiLoading}
-                      className="flex-1 px-5 py-4 rounded-2xl bg-white/10 border border-white/10 text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    />
-
-                    <button
-                      type="submit"
-                      disabled={
-                        aiLoading ||
-                        (!aiMessage.trim() &&
-                          !selectedImage)
-                      }
-                      className="p-4 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-xl hover:scale-105 transition-all disabled:opacity-50"
-                    >
-                      {aiLoading ? (
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                      ) : (
-                        <Send className="w-5 h-5" />
-                      )}
-                    </button>
-                  </form>
-                </div>
-              </div>
+            {activeTab === 'ai-assistant' && (
+              <AIChat
+                onBack={() => {
+                  setActiveTab('chats')
+                  setSelectedChat(null)
+                }}
+              />
             )}
 
             {/* CHAT AREA */}
             {activeTab === 'chats' &&
               selectedChat &&
               selectedConversation && (
-                <>
-                  <div className="p-5 border-b border-white/10 flex items-center gap-4 bg-slate-900">
-                    <button
-                      onClick={() =>
-                        setSelectedChat(
-                          null
-                        )
-                      }
-                      className="md:hidden"
-                    >
-                      <ArrowLeft className="w-5 h-5 text-white" />
-                    </button>
+                <ChatWindow
+                  conversation={selectedConversation}
+                  messages={messages.map((m) => ({
+                    id: m.id,
+                    sender:
+                      m.sender_id === user?.id
+                        ? 'me'
+                        : 'other',
+                    text: m.message,
+                    time: new Date(
+                      m.created_at
+                    ).toLocaleTimeString([], {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    }),
+                  }))}
+                  onBack={() => setSelectedChat(null)}
+                  onSend={async (text) => {
+                    if (!selectedConversation || !user) return
 
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 flex items-center justify-center text-white">
-                      {selectedConversation.name
-                        .split(' ')
-                        .map(n => n[0])
-                        .join('')}
-                    </div>
+                    const receiverId =
+                      selectedConversation.user_one === user.id
+                        ? selectedConversation.user_two
+                        : selectedConversation.user_one
 
-                    <div className="flex-1">
-                      <h3 className="text-white font-medium">
-                        {
-                          selectedConversation.name
-                        }
-                      </h3>
-
-                      <p className="text-sm text-slate-400">
-                        {
-                          selectedConversation.company
-                        }
-                      </p>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <button className="p-2 rounded-xl hover:bg-white/10">
-                        <Phone className="w-5 h-5 text-white" />
-                      </button>
-
-                      <button className="p-2 rounded-xl hover:bg-white/10">
-                        <Video className="w-5 h-5 text-white" />
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="flex-1 overflow-y-auto p-6 space-y-5 bg-slate-950">
-                    {dummyMessages.map(
-                      msg => (
-                        <div
-                          key={msg.id}
-                          className={`flex ${
-                            msg.sender ===
-                            'me'
-                              ? 'justify-end'
-                              : 'justify-start'
-                          }`}
-                        >
-                          <div
-                            className={`max-w-[70%] rounded-3xl px-5 py-4 ${
-                              msg.sender ===
-                              'me'
-                                ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white'
-                                : 'bg-white/10 text-white border border-white/10'
-                            }`}
-                          >
-                            <p>
-                              {msg.text}
-                            </p>
-
-                            <div className="flex justify-end mt-2">
-                              <span className="text-xs opacity-70">
-                                {msg.time}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
+                    try {
+                      await sendMessage(
+                        selectedConversation.id,
+                        user.id,
+                        receiverId,
+                        text
                       )
-                    )}
-                  </div>
-
-                  <form
-                    onSubmit={
-                      handleSendMessage
+                    } catch (err) {
+                      console.error(err)
                     }
-                    className="p-5 border-t border-white/10 bg-slate-900"
-                  >
-                    <div className="flex items-center gap-3">
-                      <button
-                        type="button"
-                        className="p-3 rounded-2xl bg-white/10"
-                      >
-                        <Plus className="w-5 h-5 text-white" />
-                      </button>
-
-                      <input
-                        type="text"
-                        value={message}
-                        onChange={e =>
-                          setMessage(
-                            e.target.value
-                          )
-                        }
-                        placeholder="Type a message..."
-                        className="flex-1 px-5 py-4 rounded-2xl bg-white/10 border border-white/10 text-white placeholder:text-slate-400 focus:outline-none"
-                      />
-
-                      <button
-                        type="submit"
-                        className="p-4 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white"
-                      >
-                        <Send className="w-5 h-5" />
-                      </button>
-                    </div>
-                  </form>
-                </>
-              )}
+                  }}
+                />
+            )}
 
             {/* EMPTY */}
             {activeTab === 'chats' &&
@@ -959,7 +619,6 @@ or
 
 export default function MessagesPage() {
   return (
-    <ProtectedRoute>
       <Suspense
         fallback={
           <div className="min-h-screen flex items-center justify-center bg-slate-950">
@@ -969,6 +628,5 @@ export default function MessagesPage() {
       >
         <MessagesContent />
       </Suspense>
-    </ProtectedRoute>
   )
 }

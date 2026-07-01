@@ -39,11 +39,38 @@ export default function DashboardPage() {
     totalFaculty: 200,
   })
 
+  const [profile, setProfile] = useState<any>(null)
+
   useEffect(() => {
     if (!loading && !user) {
       router.push('/login')
     }
   }, [user, loading, router])
+
+  useEffect(() => {
+  if (!user) return
+
+  const loadProfile = async () => {
+    const { data } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single()
+
+    if (data) {
+      setProfile(data)
+
+      setStats({
+        totalUsers: 5000,
+        totalAlumni: 2000,
+        totalStudents: 2800,
+        totalFaculty: 200,
+      })
+    }
+  }
+
+  loadProfile()
+}, [user])
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
@@ -69,36 +96,36 @@ export default function DashboardPage() {
   if (!user) return null
 
   const name =
-    user.user_metadata?.name ||
-    user.email ||
+    profile?.name ||
+    user?.email ||
     'User'
 
   const role =
-    user.user_metadata?.role ||
+    profile?.role ||
     'student'
 
   const userStats = [
   {
     label: 'Profile Completion',
-    value: '65%',
+    value: `${profile?.profile_completion ?? 0}%`,
     icon: Users,
     color: 'from-purple-500 to-indigo-500',
   },
   {
     label: 'Resume Score',
-    value: '78',
+    value: `${profile?.resume_score ?? 0}`,
     icon: Award,
     color: 'from-blue-500 to-cyan-500',
   },
   {
     label: 'Mentors Available',
-    value: '143',
+    value: `${profile?.mentors_available ?? 0}`,
     icon: MessageCircle,
     color: 'from-green-500 to-emerald-500',
   },
   {
     label: 'Achievements',
-    value: '1',
+    value: `${profile?.achievements ?? 0}`,
     icon: TrendingUp,
     color: 'from-orange-500 to-yellow-500',
   },

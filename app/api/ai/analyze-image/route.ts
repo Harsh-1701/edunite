@@ -1,26 +1,36 @@
 // app/api/ai/analyze-image/route.ts
 
 import { NextRequest, NextResponse } from 'next/server'
-import { getAuthToken, verifyToken } from '@/lib/auth'
+import { createClient } from '@supabase/supabase-js'
 import Tesseract from 'tesseract.js'
 
 export async function POST(req: NextRequest) {
   try {
     // AUTH
-    const token = await getAuthToken()
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
 
-    if (!token) {
+    const authHeader = req.headers.get('Authorization')
+
+    if (!authHeader) {
       return NextResponse.json(
-        { error: 'Not authenticated' },
+        { error: 'Unauthorized' },
         { status: 401 }
       )
     }
 
-    const payload = verifyToken(token)
+    const token = authHeader.replace('Bearer ', '')
 
-    if (!payload) {
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser(token)
+
+    if (error || !user) {
       return NextResponse.json(
-        { error: 'Invalid token' },
+        { error: 'Unauthorized' },
         { status: 401 }
       )
     }

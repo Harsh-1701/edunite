@@ -56,23 +56,34 @@ export default function SettingsPage() {
   })
 
   useEffect(() => {
-    if (user) {
+    if (!user) return
+
+    const loadProfile = async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single()
+
+      if (error) return
+
       setFormData({
-        name: user.user_metadata?.name || '',
-        email: user.email || '',
-        bio: (user as any).bio || '',
-        company: (user as any).company || '',
-        jobTitle: (user as any).jobTitle || '',
-        location: (user as any).location || '',
-        linkedIn: (user as any).linkedIn || '',
-        github: (user as any).github || '',
-        discord: (user as any).discord || '',
-        skills: Array.isArray((user as any).skills) ? (user as any).skills.join(', ') : '',
+        name: data.name || '',
+        email: data.email || '',
+        bio: data.bio || '',
+        company: data.company || '',
+        jobTitle: data.job_title || '',
+        location: data.location || '',
+        linkedIn: data.linkedin || '',
+        github: data.github || '',
+        discord: data.discord || '',
+        skills: data.skills?.join(', ') || '',
       })
-      if (user.avatar) {
-        setAvatarPreview(user.avatar)
-      }
+
+      setAvatarPreview(data.avatar || null)
     }
+
+    loadProfile()
   }, [user])
 
   useEffect(() => {
@@ -171,23 +182,24 @@ export default function SettingsPage() {
     setSaving(true)
 
     try {
-      const { error } = await supabase.auth.updateUser({
-        data: {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
           name: formData.name,
           bio: formData.bio,
           company: formData.company,
-          jobTitle: formData.jobTitle,
+          job_title: formData.jobTitle,
           location: formData.location,
-          linkedIn: formData.linkedIn,
+          linkedin: formData.linkedIn,
           github: formData.github,
           discord: formData.discord,
+          avatar: avatarPreview,
           skills: formData.skills
             .split(',')
-            .map((skill) => skill.trim())
+            .map(skill => skill.trim())
             .filter(Boolean),
-          avatar: avatarPreview || '',
-        },
-      })
+        })
+        .eq('id', user.id)
 
       if (error) throw error
 
@@ -237,10 +249,10 @@ export default function SettingsPage() {
               ) : (
                 <div className="w-24 h-24 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-full flex items-center justify-center text-white text-2xl font-bold ring-4 ring-purple-100 dark:ring-purple-900/30">
                   {(user.user_metadata?.name || user.email || 'U')
-  .split(' ')
-  .map((n: string) => n[0])
-  .join('')
-  .toUpperCase()}
+                  .split(' ')
+                  .map((n: string) => n[0])
+                  .join('')
+                  .toUpperCase()}
                 </div>
               )}
               <button type="button" onClick={handleAvatarClick}
