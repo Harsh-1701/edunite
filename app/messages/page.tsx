@@ -1,18 +1,26 @@
 'use client'
 
+import {
+  setOnline,
+  setOffline,
+} from '@/lib/services/presence'
+import {
+  subscribeTyping,
+  unsubscribeTyping,
+} from '@/lib/services/typing.service'
 import AIChat from '@/components/messages/AIChat'
 import ChatWindow from '@/components/messages/ChatWindow'
 import ConversationList from '@/components/messages/ConversationList'
 import AnnouncementFeed from '@/components/messages/AnnouncementFeed'
 import { supabase } from '@/lib/supabase'
-import { getConversations } from '../../lib/services/conversations'
-
 import {
-  loadMessages,
-  sendMessage,
-  subscribeMessages,
-  unsubscribeMessages,
-} from '@/lib/services/messages'
+    getConversations,
+    subscribeConversations,
+    unsubscribeConversations,
+  } from '@/lib/services/conversations'
+
+import { sendMessage } from '@/lib/services/messages'
+import useRealtimeMessages from '@/hooks/useRealtimeMessages'
 import {
   Conversation,
   Message,
@@ -111,7 +119,11 @@ function MessagesContent() {
   const [feedPost, setFeedPost] = useState('')
 
   const [conversations, setConversations] = useState<any[]>([])
-  const [messages, setMessages] = useState<any[]>([])
+  const [typing, setTyping] = useState(false)
+  const {
+    messages,
+    loading: messagesLoading,
+  } = useRealtimeMessages(selectedChat)
 
   // AI STATES
   const [aiMessage, setAiMessage] = useState('')
@@ -171,9 +183,36 @@ function MessagesContent() {
   useEffect(() => {
     if (!user) return
 
-    const loadConversations = async () => {
-      if (!user) return
+    setOnline(user.id)
 
+    const handleUnload = () => {
+      navigator.sendBeacon(
+        '/api/user/offline',
+        JSON.stringify({
+          userId: user.id,
+        })
+      )
+    }
+
+    window.addEventListener(
+      'beforeunload',
+      handleUnload
+    )
+
+    return () => {
+      window.removeEventListener(
+        'beforeunload',
+        handleUnload
+      )
+    }
+  }, [user])
+
+  useEffect(() => {
+    if (!user) return
+
+    let channel: any
+
+    const load = async () => {
       try {
         const data = await getConversations(user.id)
         setConversations(data)
@@ -182,7 +221,15 @@ function MessagesContent() {
       }
     }
 
-    loadConversations()
+    load()
+
+    channel = subscribeConversations(user.id, load)
+
+    return () => {
+      if (channel) {
+        unsubscribeConversations(channel)
+      }
+    }
   }, [user])
 
   const handleSendMessage = (
@@ -350,53 +397,22 @@ function MessagesContent() {
     ) ?? null
 
     useEffect(() => {
-      if (!selectedChat) return
+      if (!selectedConversation || !user) return
 
-      let channel: any
+      const otherUserId =
+        selectedConversation.user_one === user.id
+          ? selectedConversation.user_two
+          : selectedConversation.user_one
 
-      const init = async () => {
-        try {
-          const data = await loadMessages(selectedChat)
-
-          console.log("Loaded messages:", data)
-
-          setMessages(data)
-
-          console.log("Subscribing to:", selectedChat)
-
-          channel = subscribeMessages(selectedChat, (message) => {
-            console.log("Received realtime message:", message)
-
-            setMessages((prev) => {
-              console.log("Previous messages:", prev.length)
-
-              const exists = prev.some((m) => m.id === message.id)
-
-              if (exists) {
-                console.log("Duplicate message")
-                return prev
-              }
-
-              const updated = [...prev, message]
-
-              console.log("Updated messages:", updated.length)
-
-              return updated
-            })
-          })
-        } catch (err) {
-          console.error(err)
-        }
-      }
-
-      init()
+      const channel = subscribeTyping(
+        otherUserId,
+        setTyping
+      )
 
       return () => {
-        if (channel) {
-          unsubscribeMessages(channel)
-        }
+        unsubscribeTyping(channel)
       }
-    }, [selectedChat])
+    }, [selectedConversation, user])
 
   const renderAiContent = (
     content: string
@@ -553,6 +569,7 @@ function MessagesContent() {
               selectedChat &&
               selectedConversation && (
                 <ChatWindow
+                typing={typing}
                   conversation={selectedConversation}
                   messages={messages.map((m) => ({
                     id: m.id,
@@ -584,6 +601,8 @@ function MessagesContent() {
                         receiverId,
                         text
                       )
+                      const data = await getConversations(user.id)
+                      setConversations(data)
                     } catch (err) {
                       console.error(err)
                     }

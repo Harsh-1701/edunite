@@ -9,47 +9,72 @@ export async function getConversations(userId: string) {
 
   if (error) throw error
 
-  const formatted = []
+  const formatted = await Promise.all(
+    (conversations ?? []).map(async (conv) => {
+      const otherUserId =
+        conv.user_one === userId
+          ? conv.user_two
+          : conv.user_one
 
-  for (const conv of conversations ?? []) {
-    const otherUserId =
-      conv.user_one === userId
-        ? conv.user_two
-        : conv.user_one
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', otherUserId)
+        .single()
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', otherUserId)
-      .single()
+      return {
+        id: conv.id,
+        user_one: conv.user_one,
+        user_two: conv.user_two,
 
-    formatted.push({
-      id: conv.id,
+        name: profile?.name ?? 'Unknown User',
+        company: profile?.company ?? '',
+        avatar: profile?.avatar_url ?? null,
 
-      user_one: conv.user_one,
-      user_two: conv.user_two,
+        online: profile?.is_online ?? false,
 
-      name: profile?.name || 'Unknown User',
+        lastSeen: profile?.last_seen ?? null,
 
-      company: profile?.company || '',
+        unread: 0,
 
-      online: false,
+        lastMessage:
+          conv.last_message ?? 'Start a conversation',
 
-      unread: 0,
-
-      lastMessage:
-        conv.last_message || 'Start a conversation',
-
-      time: conv.last_message_at
-        ? new Date(
-            conv.last_message_at
-          ).toLocaleTimeString([], {
-            hour: '2-digit',
-            minute: '2-digit',
-          })
-        : '',
+        time: conv.last_message_at
+          ? new Date(
+              conv.last_message_at
+            ).toLocaleTimeString([], {
+              hour: '2-digit',
+              minute: '2-digit',
+            })
+          : '',
+      }
     })
-  }
+  )
 
   return formatted
+}
+
+export function subscribeConversations(
+  userId: string,
+  callback: () => void
+) {
+  return supabase
+    .channel(`conversations-${userId}`)
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'conversations',
+      },
+      () => callback()
+    )
+    .subscribe()
+}
+
+export function unsubscribeConversations(
+  channel: any
+) {
+  supabase.removeChannel(channel)
 }

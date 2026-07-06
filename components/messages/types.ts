@@ -13,11 +13,15 @@ export type Conversation = {
   id: number
   name: string
   role: string
+
+  company: string | null
+
+  online: boolean
+  lastSeen: string | null
+
   lastMessage: string
   time: string
   unread: number
-  online: boolean
-  company: string | null
 }
 
 export type Message = {

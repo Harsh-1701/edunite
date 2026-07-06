@@ -1,5 +1,10 @@
 'use client'
 
+import {
+  setOnline,
+  setOffline,
+} from '@/lib/services/presence'
+
 import React, {
   useEffect,
   useState,
@@ -70,6 +75,33 @@ export default function DashboardPage() {
   }
 
   loadProfile()
+}, [user])
+
+useEffect(() => {
+  if (!user) return
+
+  setOnline(user.id)
+
+  const handleUnload = () => {
+    navigator.sendBeacon(
+      '/api/user/offline',
+      JSON.stringify({
+        userId: user.id,
+      })
+    )
+  }
+
+  window.addEventListener(
+    'beforeunload',
+    handleUnload
+  )
+
+  return () => {
+    window.removeEventListener(
+      'beforeunload',
+      handleUnload
+    )
+  }
 }, [user])
 
   const handleLogout = async () => {
