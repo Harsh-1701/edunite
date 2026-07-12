@@ -4,11 +4,15 @@ import {
   setOnline,
   setOffline,
 } from '@/lib/services/presence'
+
 import {
   subscribeTyping,
   unsubscribeTyping,
-} from '@/lib/services/typing.service'
+} from '@/lib/services/typing'
+
 import AIChat from '@/components/messages/AIChat'
+
+
 import ChatWindow from '@/components/messages/ChatWindow'
 import ConversationList from '@/components/messages/ConversationList'
 import AnnouncementFeed from '@/components/messages/AnnouncementFeed'
@@ -19,7 +23,12 @@ import {
     unsubscribeConversations,
   } from '@/lib/services/conversations'
 
-import { sendMessage } from '@/lib/services/messages'
+import {
+  sendMessage,
+  subscribeIncomingMessages,
+  unsubscribeMessages,
+  markDelivered,
+} from '@/lib/services/messages'
 import useRealtimeMessages from '@/hooks/useRealtimeMessages'
 import {
   Conversation,
@@ -88,12 +97,16 @@ const dummyMessages: Message[] = [
     sender: 'other',
     text: 'Hi! I am interested in learning about product management.',
     time: '10:30 AM',
+    delivered: true,
+    read: true,
   },
   {
     id: 2,
     sender: 'me',
     text: 'Hello! Sure, what specific areas are you interested in?',
     time: '10:32 AM',
+    delivered: true,
+    read: false,
   },
 ]
 
@@ -119,7 +132,6 @@ function MessagesContent() {
   const [feedPost, setFeedPost] = useState('')
 
   const [conversations, setConversations] = useState<any[]>([])
-  const [typing, setTyping] = useState(false)
   const {
     messages,
     loading: messagesLoading,
@@ -155,6 +167,8 @@ function MessagesContent() {
 
   const [selectedImage, setSelectedImage] =
     useState<string | null>(null)
+
+  const [typingUserId, setTypingUserId] = useState<string | null>(null)
 
   const [imagePreview, setImagePreview] =
     useState<string | null>(null)
@@ -231,6 +245,33 @@ function MessagesContent() {
       }
     }
   }, [user])
+
+  useEffect(() => {
+  if (!user) return
+
+  const channel = subscribeIncomingMessages(
+    user.id,
+    async (message) => {
+      if (
+        message.receiver_id === user.id &&
+        !message.delivered
+      ) {
+        try {
+          await markDelivered(message.id)
+        } catch (err) {
+          console.error(
+            'Failed to mark message delivered:',
+            err
+          )
+        }
+      }
+    }
+  )
+
+  return () => {
+    unsubscribeMessages(channel)
+  }
+}, [user])
 
   const handleSendMessage = (
     e: React.FormEvent
@@ -396,6 +437,10 @@ function MessagesContent() {
       c => c.id === selectedChat
     ) ?? null
 
+  const isOtherUserTyping =
+    typingUserId !== null &&
+    typingUserId !== user?.id
+
     useEffect(() => {
       if (!selectedConversation || !user) return
 
@@ -405,13 +450,28 @@ function MessagesContent() {
           : selectedConversation.user_one
 
       const channel = subscribeTyping(
-        otherUserId,
-        setTyping
+        selectedConversation.id,
+        (payload) => {
+
+          // Ignore our own typing updates
+          if (payload.user_id === user.id) return
+
+          // Ignore updates from anyone who isn't in this chat
+          if (payload.user_id !== otherUserId) return
+
+          if (payload.typing) {
+            setTypingUserId(payload.user_id)
+          } else {
+            setTypingUserId(null)
+          }
+
+        }
       )
 
       return () => {
         unsubscribeTyping(channel)
       }
+
     }, [selectedConversation, user])
 
   const renderAiContent = (
@@ -568,8 +628,10 @@ function MessagesContent() {
             {activeTab === 'chats' &&
               selectedChat &&
               selectedConversation && (
+
+              
                 <ChatWindow
-                typing={typing}
+                typing={isOtherUserTyping}
                   conversation={selectedConversation}
                   messages={messages.map((m) => ({
                     id: m.id,
@@ -577,13 +639,18 @@ function MessagesContent() {
                       m.sender_id === user?.id
                         ? 'me'
                         : 'other',
+
                     text: m.message,
+
                     time: new Date(
                       m.created_at
                     ).toLocaleTimeString([], {
                       hour: '2-digit',
                       minute: '2-digit',
                     }),
+
+                    delivered: m.delivered,
+                    read: m.read,
                   }))}
                   onBack={() => setSelectedChat(null)}
                   onSend={async (text) => {

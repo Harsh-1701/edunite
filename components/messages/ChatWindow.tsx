@@ -78,7 +78,10 @@ export default function ChatWindow({
         showScrollButton={showScrollButton}
       />
 
-      <MessageInput onSend={onSend} />
+      <MessageInput
+        conversationId={conversation.id.toString()}
+        onSend={onSend}
+      />
     </>
   )
 }

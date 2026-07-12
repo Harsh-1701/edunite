@@ -6,6 +6,7 @@ import { Footer } from '@/components/layout/Footer'
 
 import { Providers } from '@/components/Providers'
 import { AuthProvider } from '@/components/providers/AuthProvider'
+import { RealtimeProvider } from '@/components/providers/RealtimeProvider'
 
 export const metadata: Metadata = {
   title: 'EduNite',
@@ -24,19 +25,21 @@ export default function RootLayout({
 
         <Providers>
           <AuthProvider>
+            <RealtimeProvider>
 
-            <div className="min-h-screen flex flex-col">
+              <div className="min-h-screen flex flex-col">
 
-              <Header />
+                <Header />
 
-              <main className="flex-1">
-                {children}
-              </main>
+                <main className="flex-1">
+                  {children}
+                </main>
 
-              <Footer />
+                <Footer />
 
-            </div>
+              </div>
 
+            </RealtimeProvider>
           </AuthProvider>
         </Providers>
 

@@ -1,13 +1,20 @@
+import { Check, CheckCheck } from 'lucide-react'
+
 type Props = {
   sender: 'me' | 'other'
   text: string
   time: string
+
+  delivered: boolean
+  read: boolean
 }
 
 export default function MessageBubble({
   sender,
   text,
   time,
+  delivered,
+  read,
 }: Props) {
   return (
     <div
@@ -26,11 +33,33 @@ export default function MessageBubble({
       >
         <p>{text}</p>
 
-        <div className="flex justify-end mt-2">
-          <span className="text-xs opacity-70">
+        <div className="flex justify-end items-center gap-1 mt-2">
+
+          <span className="text-[11px] opacity-70">
             {time}
           </span>
+
+          {sender === 'me' && (
+            read ? (
+              <CheckCheck
+                size={15}
+                className="text-emerald-300"
+              />
+            ) : delivered ? (
+              <CheckCheck
+                size={15}
+                className="text-white/80"
+              />
+            ) : (
+              <Check
+                size={15}
+                className="text-white/80"
+              />
+            )
+          )}
+
         </div>
+
       </div>
     </div>
   )

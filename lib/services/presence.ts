@@ -11,7 +11,9 @@ export async function setOnline(userId: string) {
     })
     .eq('id', userId)
 
-  console.log('ONLINE ERROR:', error)
+  if (error) {
+    console.error(error)
+  }
 }
 
 export async function setOffline(userId: string) {
@@ -25,5 +27,7 @@ export async function setOffline(userId: string) {
     })
     .eq('id', userId)
 
-  console.log('OFFLINE ERROR:', error)
+  if (error) {
+    console.error(error)
+  }
 }

@@ -28,6 +28,8 @@ export default function ChatMessages({
             sender={msg.sender}
             text={msg.text}
             time={msg.time}
+            delivered={msg.delivered}
+            read={msg.read}
           />
         ))}
 
@@ -43,6 +45,7 @@ export default function ChatMessages({
           }
         />
       )}
+
     </div>
   )
 }

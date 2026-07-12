@@ -29,6 +29,9 @@ export type Message = {
   sender: 'me' | 'other'
   text: string
   time: string
+
+  delivered: boolean
+  read: boolean
 }
 
 export type Announcement = {
