@@ -20,6 +20,7 @@ export async function sendMessage(
   receiverId: string,
   text: string
 ) {
+  // 1. Insert the actual message
   const { data, error } = await supabase
     .from('messages')
     .insert({
@@ -27,7 +28,6 @@ export async function sendMessage(
       sender_id: senderId,
       receiver_id: receiverId,
       message: text,
-
       read: false,
       delivered: false,
       read_at: null,
@@ -37,13 +37,61 @@ export async function sendMessage(
 
   if (error) throw error
 
-  await supabase
+  // 2. Update conversation preview
+  const { error: conversationError } = await supabase
     .from('conversations')
     .update({
       last_message: text,
       last_message_at: new Date().toISOString(),
     })
     .eq('id', conversationId)
+
+  if (conversationError) {
+    console.error(
+      'FAILED TO UPDATE CONVERSATION:',
+      conversationError
+    )
+  }
+
+  // 3. Get sender name for notification
+  const { data: senderProfile } = await supabase
+    .from('profiles')
+    .select('name')
+    .eq('id', senderId)
+    .single()
+
+  const senderName =
+    senderProfile?.name ?? 'Someone'
+
+  // 4. Create notification for 
+  // 
+  // receiver
+  const { data: notificationData, error: notificationError } =
+    await supabase
+      .from('notifications')
+      .insert({
+        user_id: receiverId,
+        actor_id: senderId,
+        conversation_id: conversationId,
+        type: 'message',
+        title: senderName,
+        body: text,
+        read: false,
+      })
+      .select()
+      .single()
+
+  if (notificationError) {
+    console.error(
+      'FAILED TO CREATE NOTIFICATION:',
+      notificationError
+    )
+  } else {
+    console.log(
+      'NOTIFICATION CREATED SUCCESSFULLY:',
+      notificationData
+    )
+  }
 
   return data
 }

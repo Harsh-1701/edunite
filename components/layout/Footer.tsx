@@ -144,7 +144,7 @@ export function Footer() {
         {/* Copyright */}
         <div className="mt-12 pt-8 border-t border-gray-200 dark:border-gray-700 text-center text-gray-600 dark:text-gray-400 text-sm">
           <p className="flex items-center justify-center gap-1">
-            © 2024 EduNite. Made with <Heart className="w-4 h-4 text-red-500 fill-red-500" /> for education.
+            © 2026 EduNite. Made with <Heart className="w-4 h-4 text-red-500 fill-red-500" /> for education.
           </p>
         </div>
       </div>

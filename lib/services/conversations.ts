@@ -22,6 +22,26 @@ export async function getConversations(userId: string) {
         .eq('id', otherUserId)
         .single()
 
+      const {
+        count: unreadCount,
+        error: unreadError,
+      } = await supabase
+        .from('messages')
+        .select('*', {
+          count: 'exact',
+          head: true,
+        })
+        .eq('conversation_id', conv.id)
+        .eq('receiver_id', userId)
+        .eq('read', false)
+
+      if (unreadError) {
+        console.error(
+          'Failed to get unread count:',
+          unreadError
+        )
+      }
+
       return {
         id: conv.id,
         user_one: conv.user_one,
@@ -35,7 +55,7 @@ export async function getConversations(userId: string) {
 
         lastSeen: profile?.last_seen ?? null,
 
-        unread: 0,
+        unread: unreadCount ?? 0,
 
         lastMessage:
           conv.last_message ?? 'Start a conversation',

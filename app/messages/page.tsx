@@ -4,6 +4,15 @@ import {
   setOnline,
   setOffline,
 } from '@/lib/services/presence'
+import {
+  markConversationNotificationsRead,
+} from '@/lib/services/notifications'
+
+import {
+  createNotification,
+  getNotifications,
+  markNotificationRead,
+} from '@/lib/services/notifications'
 
 import {
   subscribeTyping,
@@ -127,6 +136,25 @@ function MessagesContent() {
   const [activeTab, setActiveTab] = useState<TabType>(defaultTab)
 
   const [selectedChat, setSelectedChat] = useState<string | null>(null)
+
+useEffect(() => {
+  if (selectedChat) {
+    sessionStorage.setItem(
+      'activeConversationId',
+      selectedChat
+    )
+  } else {
+    sessionStorage.removeItem(
+      'activeConversationId'
+    )
+  }
+
+  return () => {
+    sessionStorage.removeItem(
+      'activeConversationId'
+    )
+  }
+}, [selectedChat])
 
   const [message, setMessage] = useState('')
   const [feedPost, setFeedPost] = useState('')
@@ -437,6 +465,52 @@ function MessagesContent() {
       c => c.id === selectedChat
     ) ?? null
 
+
+  useEffect(() => {
+    if (!selectedChat || !user) return
+
+    const markCurrentConversationNotifications =
+      async () => {
+        try {
+          const notifications =
+            await getNotifications(user.id)
+
+          const unreadForConversation =
+            notifications.filter(
+              (notification: any) =>
+                !notification.read &&
+                notification.conversation_id ===
+                  selectedChat
+            )
+
+          await Promise.all(
+            unreadForConversation.map(
+              (notification: any) =>
+                markNotificationRead(
+                  notification.id
+                )
+            )
+          )
+
+          setConversations((prev) =>
+            prev.map((conv) =>
+              conv.id === selectedChat
+                ? {
+                    ...conv,
+                    unread: 0,
+                  }
+                : conv
+            )
+          )
+        } catch (err) {
+          console.error(err)
+        }
+      }
+
+    markCurrentConversationNotifications()
+  }, [selectedChat, user])
+
+
   const isOtherUserTyping =
     typingUserId !== null &&
     typingUserId !== user?.id
@@ -662,16 +736,45 @@ function MessagesContent() {
                         : selectedConversation.user_one
 
                     try {
+                      // 1. Send the actual message
                       await sendMessage(
                         selectedConversation.id,
                         user.id,
                         receiverId,
                         text
                       )
+
+                      // 2. Create a notification for the receiver
+                      try {
+                        await createNotification(
+                          receiverId,
+                          selectedConversation.id,
+                          user.user_metadata?.name ||
+                            user.email ||
+                            'Someone',
+                          text
+                        )
+
+                        console.log(
+                          'NOTIFICATION CREATED FOR:',
+                          receiverId
+                        )
+                      } catch (notificationError) {
+                        console.error(
+                          'FAILED TO CREATE NOTIFICATION:',
+                          notificationError
+                        )
+                      }
+
+                      // 3. Refresh conversation list
                       const data = await getConversations(user.id)
                       setConversations(data)
+
                     } catch (err) {
-                      console.error(err)
+                      console.error(
+                        'FAILED TO SEND MESSAGE:',
+                        err
+                      )
                     }
                   }}
                 />

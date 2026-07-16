@@ -1,6 +1,12 @@
 'use client'
 
 import { useEffect } from 'react'
+import toast from 'react-hot-toast'
+
+import {
+  subscribeNotifications,
+  unsubscribeNotifications,
+} from '@/lib/services/notifications'
 
 import { useAuth } from '@/components/providers/AuthProvider'
 
@@ -62,6 +68,48 @@ export function RealtimeProvider({
       }
     )
 
+    const notificationChannel =
+      subscribeNotifications(
+        user.id,
+        (notification, eventType) => {
+          if (eventType !== 'INSERT') return
+
+          // Don't show popup if user is already
+          // inside the same conversation.
+
+          const currentPath =
+            window.location.pathname
+
+          const search =
+            new URLSearchParams(
+              window.location.search
+            )
+
+          const currentConversation =
+            search.get('conversation')
+
+          if (
+            currentPath === '/messages' &&
+            currentConversation ===
+              notification.conversation_id
+          ) {
+            return
+          }
+
+          toast.custom(() => (
+            <div className="bg-[#1f2937] text-white rounded-xl shadow-xl px-4 py-3 min-w-[320px] border border-white/10">
+              <div className="font-semibold text-white">
+                {notification.title}
+              </div>
+
+              <div className="text-sm text-slate-300 mt-1">
+                {notification.body}
+              </div>
+            </div>
+          ))
+        }
+      )
+
     return () => {
       console.log(
         'GLOBAL REALTIME STOPPED FOR:',
@@ -69,6 +117,7 @@ export function RealtimeProvider({
       )
 
       unsubscribeMessages(channel)
+      unsubscribeNotifications(notificationChannel)
     }
   }, [user?.id])
 
